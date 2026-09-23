@@ -1,6 +1,7 @@
 // ============================================================================
-// CONDONIS - CORE: Sesión, Navegación SPA, Presencia, Realtime y Utilidades
-// Lógica central compartida por todas las secciones de app.html
+// CONDONIS - CORE: Sesión, Navegación SPA, Realtime y Utilidades
+// La presencia de modelos vive ahora en js/models.js (Fase 2).
+// core.js conserva sesión, navegación, Realtime base y toasts.
 // ============================================================================
 
 // Estado global de la aplicación (única fuente de verdad en memoria)
@@ -9,13 +10,13 @@ window.appState = {
     currentSection: 'sectionHome', // sección visible de la SPA
     models: [],                 // cache de modelos activos (Fase 2)
     callActive: false,          // true mientras haya videollamada viva
-    heartbeatInterval: null,    // id del intervalo de heartbeat
+    heartbeatInterval: null,    // reservado (lo gestiona models.js ahora)
     realtimeSubscription: null  // canal Realtime activo
 };
 
 // ============================================================================
 // FUNCIÓN: initApp()
-// Arranque de la aplicación: sesión, perfil, UI, presencia y Realtime
+// Arranque: sesión, perfil, UI por rol, Realtime y sección inicial
 // ============================================================================
 async function initApp() {
     try {
@@ -29,11 +30,15 @@ async function initApp() {
 
         window.appState.currentUser = session.user; // guardar usuario base
 
-        await loadUserProfile();   // cargar fila de profiles
-        setupUIForRole();          // ajustar navegación según rol
-        startPresenceSystem();     // heartbeat de presencia (modelos)
+        await loadUserProfile();      // cargar fila de profiles
+        setupUIForRole();             // ajustar navegación según rol
         setupRealtimeSubscriptions(); // escuchar cambios en vivo
         showSection('sectionHome');   // sección inicial
+
+        // Avisar a los módulos de fase (models.js) que el perfil está listo
+        if (typeof window.onAppReady === 'function') {
+            window.onAppReady();
+        }
 
         console.log('Aplicación inicializada. Build:', window.CND_BUILD);
     } catch (error) {
@@ -109,53 +114,14 @@ function setupUIForRole() {
             </svg>
             <span class="nav-label">Admin</span>
         `;
-        // Clic navega a la sección admin
         adminBtn.addEventListener('click', () => showSection('sectionAdmin'));
         navContainer.appendChild(adminBtn);
     }
 }
 
 // ============================================================================
-// FUNCIÓN: startPresenceSystem()
-// Modelos: marca online inmediato + heartbeat cada 20s + offline al salir
-// ============================================================================
-function startPresenceSystem() {
-    const profile = window.appState.currentUser.profile;
-    if (!profile || profile.role !== 'model') return; // solo modelos
-
-    updatePresence(true); // P1: toggle inmediato
-
-    // P2: heartbeat que renueva last_seen mientras la pestaña viva
-    window.appState.heartbeatInterval = setInterval(() => {
-        updatePresence(true);
-    }, window.CND_CONFIG.HEARTBEAT_INTERVAL);
-
-    // P3: al cerrar/ocultar la pestaña, marcar offline
-    window.addEventListener('pagehide', () => updatePresence(false));
-    window.addEventListener('beforeunload', () => updatePresence(false));
-}
-
-// ============================================================================
-// FUNCIÓN: updatePresence()
-// Escribe is_online y last_seen propios en profiles
-// ============================================================================
-async function updatePresence(isOnline) {
-    try {
-        await window.supabase
-            .from('profiles')
-            .update({
-                is_online: isOnline,
-                last_seen: new Date().toISOString()
-            })
-            .eq('id', window.appState.currentUser.id);
-    } catch (error) {
-        console.error('Error al actualizar presencia:', error);
-    }
-}
-
-// ============================================================================
 // FUNCIÓN: setupRealtimeSubscriptions()
-// Suscripción a UPDATE de profiles para refrescar presencia en vivo
+// Suscripción a UPDATE de profiles: presencia en vivo (reglas P5/P6)
 // ============================================================================
 function setupRealtimeSubscriptions() {
     window.appState.realtimeSubscription = window.supabase
@@ -170,7 +136,7 @@ function setupRealtimeSubscriptions() {
 
 // ============================================================================
 // FUNCIÓN: handleProfileUpdate()
-// Debounce de 150ms y re-render solo del contenedor de modelos (reglas A6/A7)
+// Debounce de 150ms y re-render solo del contenedor (reglas A6/A7)
 // ============================================================================
 function handleProfileUpdate(payload) {
     const updatedProfile = payload.new;
@@ -182,7 +148,7 @@ function handleProfileUpdate(payload) {
 
     window.profileUpdateTimeout = setTimeout(() => {
         if (typeof window.loadActiveModels === 'function') {
-            window.loadActiveModels(); // existe desde Fase 2
+            window.loadActiveModels(); // models.js refresca sin duplicar
         }
     }, window.CND_CONFIG.DEBOUNCE_DELAY);
 }
@@ -215,7 +181,7 @@ function showSection(sectionId) {
 // ============================================================================
 function loadSectionContent(sectionId) {
     if (sectionId === 'sectionHome' && typeof window.loadActiveModels === 'function') {
-        window.loadActiveModels(); // Fase 2
+        window.loadActiveModels(); // listado o panel de modelo (Fase 2)
     } else if (sectionId === 'sectionProfile') {
         renderProfileSection(); // render básico propio de core.js
     } else if (sectionId === 'sectionHistory') {
@@ -291,16 +257,12 @@ function showToast(message, type = 'info') {
 
 // ============================================================================
 // FUNCIÓN: logout()
-// Limpia intervalos, canal Realtime y sesión; vuelve al login
+// Limpia canal Realtime y sesión; vuelve al login
 // ============================================================================
 async function logout() {
     try {
-        if (window.appState.heartbeatInterval) {
-            clearInterval(window.appState.heartbeatInterval); // detener heartbeat
-        }
-
         if (window.appState.realtimeSubscription) {
-            window.supabase.removeChannel(window.appState.realtimeSubscription); // cerrar canal
+            window.supabase.removeChannel(window.appState.realtimeSubscription);
         }
 
         await window.supabase.auth.signOut(); // cerrar sesión Auth
