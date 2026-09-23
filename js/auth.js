@@ -1,38 +1,30 @@
 // ============================================================================
 // CONDONIS - AUTH: Lógica de Autenticación (Login/Registro)
-// Este archivo maneja el flujo de autenticación de usuarios
+// Maneja el flujo completo de autenticación en index.html
 // ============================================================================
 
 // ============================================================================
 // FUNCIÓN: initAuth()
-// Inicializa el sistema de autenticación
+// Inicializa el sistema de autenticación al cargar index.html
 // ============================================================================
 function initAuth() {
-    // Configurar tabs de autenticación
-    setupAuthTabs();
-
-    // Configurar formularios
-    setupLoginForm();
-    setupRegisterForm();
-
-    // Configurar modales de TyC y Privacidad
-    setupModals();
-
-    // Verificar si ya hay sesión activa
-    checkExistingSession();
+    setupAuthTabs();      // Cambio entre login y registro
+    setupLoginForm();     // Envío del formulario de login
+    setupRegisterForm();  // Envío del formulario de registro
+    setupModals();        // Modales de TyC y Privacidad
+    checkExistingSession(); // Redirige si ya hay sesión activa
 }
 
 // ============================================================================
 // FUNCIÓN: checkExistingSession()
-// Verifica si ya existe una sesión activa y redirige si es necesario
+// Si ya existe sesión activa, salta directo a la aplicación
 // ============================================================================
 async function checkExistingSession() {
     try {
         const { data: { session } } = await window.supabase.auth.getSession();
-        
+
         if (session) {
-            // Ya hay sesión activa, redirigir a la aplicación
-            window.location.href = 'app.html';
+            window.location.href = 'app.html'; // sesión viva: entrar directo
         }
     } catch (error) {
         console.error('Error al verificar sesión:', error);
@@ -41,7 +33,7 @@ async function checkExistingSession() {
 
 // ============================================================================
 // FUNCIÓN: setupAuthTabs()
-// Configura el cambio entre tabs de login y registro
+// Alterna entre formularios de login y registro
 // ============================================================================
 function setupAuthTabs() {
     const tabs = document.querySelectorAll('.auth-tab');
@@ -51,11 +43,11 @@ function setupAuthTabs() {
         tab.addEventListener('click', () => {
             const targetTab = tab.dataset.tab;
 
-            // Actualizar tabs activos
+            // Activar el tab clicado y desactivar el resto
             tabs.forEach(t => t.classList.remove('active'));
             tab.classList.add('active');
 
-            // Actualizar formularios activos
+            // Mostrar solo el formulario correspondiente
             forms.forEach(form => {
                 form.classList.remove('active');
                 if (form.id === `${targetTab}Form`) {
@@ -63,49 +55,52 @@ function setupAuthTabs() {
                 }
             });
 
-            // Limpiar mensajes de error
-            hideAlert();
+            hideAlert(); // limpiar mensajes al cambiar de tab
         });
     });
 }
 
 // ============================================================================
 // FUNCIÓN: setupLoginForm()
-// Configura el formulario de inicio de sesión
+// Procesa el inicio de sesión con email y contraseña
 // ============================================================================
 function setupLoginForm() {
     const form = document.getElementById('loginForm');
     if (!form) return;
 
     form.addEventListener('submit', async (e) => {
-        e.preventDefault();
+        e.preventDefault(); // evitar recarga del formulario
 
-        const email = document.getElementById('loginEmail').value;
+        const email = document.getElementById('loginEmail').value.trim();
         const password = document.getElementById('loginPassword').value;
         const button = document.getElementById('loginBtn');
 
-        // Deshabilitar botón y mostrar loading
-        button.disabled = true;
-        button.innerHTML = '<span class="spinner"></span>';
+        button.disabled = true;                 // bloquear doble envío
+        button.innerHTML = '<span class="spinner"></span>'; // feedback visual
 
         try {
-            // Intentar iniciar sesión
             const { data, error } = await window.supabase.auth.signInWithPassword({
                 email,
                 password
             });
 
-            if (error) throw error;
+            if (error) throw error; // credenciales inválidas u otro error
 
-            // Éxito: redirigir a la aplicación
             showAlert('Inicio de sesión exitoso', 'success');
             setTimeout(() => {
-                window.location.href = 'app.html';
-            }, 1000);
+                window.location.href = 'app.html'; // entrar a la app
+            }, 800);
 
         } catch (error) {
             console.error('Error en login:', error);
-            showAlert(error.message || 'Error al iniciar sesión', 'error');
+            // Mensajes amigables para errores comunes de Auth
+            if (String(error.message).includes('Invalid login credentials')) {
+                showAlert('Credenciales inválidas. Verifica tu correo y contraseña.', 'error');
+            } else if (String(error.message).includes('not confirmed')) {
+                showAlert('Tu correo aún no está confirmado. Revisa tu bandeja de entrada.', 'error');
+            } else {
+                showAlert(error.message || 'Error al iniciar sesión', 'error');
+            }
             button.disabled = false;
             button.textContent = 'Iniciar Sesión';
         }
@@ -114,16 +109,16 @@ function setupLoginForm() {
 
 // ============================================================================
 // FUNCIÓN: setupRegisterForm()
-// Configura el formulario de registro
+// Procesa el registro con validaciones de TyC y mayoría de edad
 // ============================================================================
 function setupRegisterForm() {
     const form = document.getElementById('registerForm');
     if (!form) return;
 
-    // Mostrar checkbox de edad solo para modelos
     const roleSelect = document.getElementById('registerRole');
     const ageCheck = document.getElementById('ageCheck');
 
+    // El checkbox de mayoría de edad solo aplica a modelos (regla L1)
     roleSelect.addEventListener('change', () => {
         if (roleSelect.value === 'model') {
             ageCheck.style.display = 'flex';
@@ -131,55 +126,72 @@ function setupRegisterForm() {
         } else {
             ageCheck.style.display = 'none';
             document.getElementById('isAdult').required = false;
+            document.getElementById('isAdult').checked = false;
         }
     });
 
     form.addEventListener('submit', async (e) => {
-        e.preventDefault();
+        e.preventDefault(); // evitar recarga
 
-        const name = document.getElementById('registerName').value;
-        const email = document.getElementById('registerEmail').value;
+        const name = document.getElementById('registerName').value.trim();
+        const email = document.getElementById('registerEmail').value.trim();
         const password = document.getElementById('registerPassword').value;
-        const role = document.getElementById('registerRole').value;
+        const role = roleSelect.value;
         const acceptTerms = document.getElementById('acceptTerms').checked;
         const isAdult = document.getElementById('isAdult').checked;
         const button = document.getElementById('registerBtn');
 
-        // Validaciones
+        // Validación: TyC obligatorias (regla L2)
         if (!acceptTerms) {
             showAlert('Debes aceptar los Términos y Condiciones', 'error');
             return;
         }
 
+        // Validación: mayoría de edad obligatoria para modelos (regla L1)
         if (role === 'model' && !isAdult) {
             showAlert('Debes confirmar que eres mayor de 18 años', 'error');
             return;
         }
 
-        // Deshabilitar botón y mostrar loading
         button.disabled = true;
         button.innerHTML = '<span class="spinner"></span>';
 
         try {
-            // Registrar usuario en Supabase Auth
+            // Crear usuario en Supabase Auth con metadata para el trigger
             const { data, error } = await window.supabase.auth.signUp({
                 email,
                 password,
                 options: {
                     data: {
-                        full_name: name,
-                        role: role
+                        full_name: name, // lo lee handle_new_user()
+                        role: role       // lo lee handle_new_user()
                     }
                 }
             });
 
             if (error) throw error;
 
-            // Éxito: mostrar mensaje y redirigir
-            showAlert('Cuenta creada exitosamente. Redirigiendo...', 'success');
-            setTimeout(() => {
-                window.location.href = 'app.html';
-            }, 2000);
+            // Caso: email duplicado (Supabase devuelve user sin identidades)
+            if (data.user && (!data.user.identities || data.user.identities.length === 0)) {
+                showAlert('Este correo ya está registrado. Intenta iniciar sesión.', 'error');
+                button.disabled = false;
+                button.textContent = 'Crear Cuenta';
+                return;
+            }
+
+            if (data.session) {
+                // Confirmación de email DESACTIVADA: entrar directo
+                showAlert('Cuenta creada exitosamente. Redirigiendo...', 'success');
+                setTimeout(() => {
+                    window.location.href = 'app.html';
+                }, 1200);
+            } else {
+                // Confirmación de email ACTIVADA: pedir verificación
+                showAlert('Cuenta creada. Revisa tu correo y confirma tu cuenta para iniciar sesión.', 'success');
+                button.disabled = false;
+                button.textContent = 'Crear Cuenta';
+                form.reset(); // limpiar formulario para el login posterior
+            }
 
         } catch (error) {
             console.error('Error en registro:', error);
@@ -192,23 +204,21 @@ function setupRegisterForm() {
 
 // ============================================================================
 // FUNCIÓN: setupModals()
-// Configura los modales de TyC y Privacidad
+// Abre los modales de TyC y Privacidad desde los enlaces del registro
 // ============================================================================
 function setupModals() {
-    // Modal de Términos y Condiciones
     const showTerms = document.getElementById('showTerms');
     if (showTerms) {
         showTerms.addEventListener('click', (e) => {
-            e.preventDefault();
+            e.preventDefault(); // no navegar
             document.getElementById('termsModal').classList.add('active');
         });
     }
 
-    // Modal de Política de Privacidad
     const showPrivacy = document.getElementById('showPrivacy');
     if (showPrivacy) {
         showPrivacy.addEventListener('click', (e) => {
-            e.preventDefault();
+            e.preventDefault(); // no navegar
             document.getElementById('privacyModal').classList.add('active');
         });
     }
@@ -216,7 +226,7 @@ function setupModals() {
 
 // ============================================================================
 // FUNCIÓN: closeModal()
-// Cierra un modal específico
+// Cierra un modal por su id (usada por onclick inline en index.html)
 // ============================================================================
 function closeModal(modalId) {
     const modal = document.getElementById(modalId);
@@ -227,7 +237,7 @@ function closeModal(modalId) {
 
 // ============================================================================
 // FUNCIÓN: showAlert()
-// Muestra un mensaje de alerta en el formulario
+// Muestra un mensaje de alerta visible en el formulario
 // ============================================================================
 function showAlert(message, type) {
     const alert = document.getElementById('authAlert');
@@ -240,7 +250,7 @@ function showAlert(message, type) {
 
 // ============================================================================
 // FUNCIÓN: hideAlert()
-// Oculta el mensaje de alerta
+// Oculta el mensaje de alerta actual
 // ============================================================================
 function hideAlert() {
     const alert = document.getElementById('authAlert');
@@ -250,9 +260,9 @@ function hideAlert() {
 }
 
 // ============================================================================
-// INICIALIZACIÓN
+// INICIALIZACIÓN al cargar el DOM
 // ============================================================================
 document.addEventListener('DOMContentLoaded', initAuth);
 
-// Exportar función closeModal para uso en HTML
+// Exposición global para onclick inline del HTML (regla A2: sin colisiones)
 window.closeModal = closeModal;
