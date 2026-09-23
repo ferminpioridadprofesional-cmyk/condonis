@@ -1,61 +1,50 @@
 // ============================================================================
-// CONDONIS - CORE: Sesión, Navegación, Utilidades y Realtime
-// Este archivo maneja la lógica central de la aplicación
+// CONDONIS - CORE: Sesión, Navegación SPA, Presencia, Realtime y Utilidades
+// Lógica central compartida por todas las secciones de app.html
 // ============================================================================
 
-// Estado global de la aplicación
+// Estado global de la aplicación (única fuente de verdad en memoria)
 window.appState = {
-    currentUser: null, // Usuario autenticado actual
-    currentSection: 'sectionHome', // Sección activa de la SPA
-    models: [], // Lista de modelos activos
-    callActive: false, // Indica si hay una llamada activa
-    heartbeatInterval: null, // Intervalo del heartbeat de presencia
-    realtimeSubscription: null // Suscripción a cambios en tiempo real
+    currentUser: null,          // usuario autenticado + perfil cargado
+    currentSection: 'sectionHome', // sección visible de la SPA
+    models: [],                 // cache de modelos activos (Fase 2)
+    callActive: false,          // true mientras haya videollamada viva
+    heartbeatInterval: null,    // id del intervalo de heartbeat
+    realtimeSubscription: null  // canal Realtime activo
 };
 
 // ============================================================================
 // FUNCIÓN: initApp()
-// Inicializa la aplicación al cargar la página
+// Arranque de la aplicación: sesión, perfil, UI, presencia y Realtime
 // ============================================================================
 async function initApp() {
     try {
-        // Verificar sesión activa
+        // Verificar que exista sesión de Supabase Auth
         const { data: { session } } = await window.supabase.auth.getSession();
-        
+
         if (!session) {
-            // No hay sesión, redirigir a login
-            window.location.href = 'index.html';
+            window.location.href = 'index.html'; // sin sesión: ir al login
             return;
         }
 
-        // Guardar usuario actual
-        window.appState.currentUser = session.user;
+        window.appState.currentUser = session.user; // guardar usuario base
 
-        // Cargar perfil completo del usuario
-        await loadUserProfile();
+        await loadUserProfile();   // cargar fila de profiles
+        setupUIForRole();          // ajustar navegación según rol
+        startPresenceSystem();     // heartbeat de presencia (modelos)
+        setupRealtimeSubscriptions(); // escuchar cambios en vivo
+        showSection('sectionHome');   // sección inicial
 
-        // Configurar interfaz según rol
-        setupUIForRole();
-
-        // Iniciar sistema de presencia (heartbeat)
-        startPresenceSystem();
-
-        // Suscribirse a cambios en tiempo real
-        setupRealtimeSubscriptions();
-
-        // Mostrar sección inicial
-        showSection('sectionHome');
-
-        console.log('✅ Aplicación inicializada correctamente');
+        console.log('Aplicación inicializada. Build:', window.CND_BUILD);
     } catch (error) {
-        console.error('❌ Error al inicializar la aplicación:', error);
+        console.error('Error al inicializar la aplicación:', error);
         showToast('Error al cargar la aplicación', 'error');
     }
 }
 
 // ============================================================================
 // FUNCIÓN: loadUserProfile()
-// Carga el perfil completo del usuario desde la base de datos
+// Lee la fila propia de profiles y la adjunta al estado global
 // ============================================================================
 async function loadUserProfile() {
     try {
@@ -67,11 +56,8 @@ async function loadUserProfile() {
 
         if (error) throw error;
 
-        // Actualizar estado global con datos del perfil
-        window.appState.currentUser.profile = profile;
-
-        // Actualizar UI con información del usuario
-        updateUserUI();
+        window.appState.currentUser.profile = profile; // adjuntar perfil
+        updateUserUI(); // reflejar saldo y avatar en el header
     } catch (error) {
         console.error('Error al cargar perfil:', error);
         showToast('Error al cargar tu perfil', 'error');
@@ -80,79 +66,78 @@ async function loadUserProfile() {
 
 // ============================================================================
 // FUNCIÓN: updateUserUI()
-// Actualiza la interfaz con los datos del usuario actual
+// Pinta avatar (inicial del nombre) y balance de tokens en el header
 // ============================================================================
 function updateUserUI() {
-    const profile = window.appState.currentUser.profile;
+    const profile = window.appState.currentUser && window.appState.currentUser.profile;
     if (!profile) return;
 
-    // Actualizar avatar
     const avatarElement = document.getElementById('userAvatar');
     if (avatarElement) {
-        const initial = profile.full_name.charAt(0).toUpperCase();
-        avatarElement.textContent = initial;
+        avatarElement.textContent = (profile.full_name || 'U').charAt(0).toUpperCase();
     }
 
-    // Actualizar balance de tokens
     const balanceElement = document.getElementById('userBalance');
     if (balanceElement) {
-        balanceElement.textContent = `${profile.tokens_balance} tokens`;
+        balanceElement.textContent = `${Number(profile.tokens_balance || 0)} tokens`;
     }
 }
 
 // ============================================================================
 // FUNCIÓN: setupUIForRole()
-// Configura la interfaz según el rol del usuario (cliente, modelo, admin, agencia)
+// Añade el botón de navegación Admin solo si el rol es admin
 // ============================================================================
 function setupUIForRole() {
     const profile = window.appState.currentUser.profile;
     if (!profile) return;
 
     const navContainer = document.querySelector('.bottom-nav');
-    
-    // Agregar botón de admin si es administrador
+    if (!navContainer) return;
+
+    // Evitar duplicar el botón si ya existe (regla A12)
+    if (document.querySelector('[data-section="sectionAdmin"]')) return;
+
     if (profile.role === 'admin') {
         const adminBtn = document.createElement('button');
         adminBtn.className = 'nav-item';
         adminBtn.dataset.section = 'sectionAdmin';
+        adminBtn.setAttribute('aria-label', 'Panel de administración');
         adminBtn.innerHTML = `
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6z"></path>
-                <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+                <circle cx="12" cy="12" r="3"></circle>
+                <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33h.01a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51h.01a1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82v.01a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
             </svg>
             <span class="nav-label">Admin</span>
         `;
+        // Clic navega a la sección admin
+        adminBtn.addEventListener('click', () => showSection('sectionAdmin'));
         navContainer.appendChild(adminBtn);
     }
 }
 
 // ============================================================================
 // FUNCIÓN: startPresenceSystem()
-// Inicia el sistema de presencia (heartbeat + toggle online)
+// Modelos: marca online inmediato + heartbeat cada 20s + offline al salir
 // ============================================================================
 function startPresenceSystem() {
     const profile = window.appState.currentUser.profile;
-    
-    // Solo modelos necesitan sistema de presencia activo
-    if (profile.role !== 'model') return;
+    if (!profile || profile.role !== 'model') return; // solo modelos
 
-    // Marcar como en línea inmediatamente
-    updatePresence(true);
+    updatePresence(true); // P1: toggle inmediato
 
-    // Iniciar heartbeat cada 20 segundos
+    // P2: heartbeat que renueva last_seen mientras la pestaña viva
     window.appState.heartbeatInterval = setInterval(() => {
         updatePresence(true);
     }, window.CND_CONFIG.HEARTBEAT_INTERVAL);
 
-    // Marcar como desconectado al cerrar la página
-    window.addEventListener('beforeunload', () => {
-        updatePresence(false);
-    });
+    // P3: al cerrar/ocultar la pestaña, marcar offline
+    window.addEventListener('pagehide', () => updatePresence(false));
+    window.addEventListener('beforeunload', () => updatePresence(false));
 }
 
 // ============================================================================
 // FUNCIÓN: updatePresence()
-// Actualiza el estado de presencia del usuario en la base de datos
+// Escribe is_online y last_seen propios en profiles
 // ============================================================================
 async function updatePresence(isOnline) {
     try {
@@ -170,109 +155,124 @@ async function updatePresence(isOnline) {
 
 // ============================================================================
 // FUNCIÓN: setupRealtimeSubscriptions()
-// Configura suscripciones a cambios en tiempo real
+// Suscripción a UPDATE de profiles para refrescar presencia en vivo
 // ============================================================================
 function setupRealtimeSubscriptions() {
-    // Suscribirse a cambios en perfiles (presencia de modelos)
     window.appState.realtimeSubscription = window.supabase
         .channel('profiles-changes')
         .on(
             'postgres_changes',
-            {
-                event: 'UPDATE',
-                schema: 'public',
-                table: 'profiles'
-            },
-            (payload) => {
-                handleProfileUpdate(payload);
-            }
+            { event: 'UPDATE', schema: 'public', table: 'profiles' },
+            (payload) => handleProfileUpdate(payload)
         )
         .subscribe();
 }
 
 // ============================================================================
 // FUNCIÓN: handleProfileUpdate()
-// Maneja actualizaciones de perfiles en tiempo real
+// Debounce de 150ms y re-render solo del contenedor de modelos (reglas A6/A7)
 // ============================================================================
 function handleProfileUpdate(payload) {
     const updatedProfile = payload.new;
-    
-    // Si es una modelo, actualizar la lista de modelos activos
-    if (updatedProfile.role === 'model') {
-        // Debounce para evitar actualizaciones excesivas
-        if (window.profileUpdateTimeout) {
-            clearTimeout(window.profileUpdateTimeout);
-        }
-        
-        window.profileUpdateTimeout = setTimeout(() => {
-            if (typeof loadActiveModels === 'function') {
-                loadActiveModels();
-            }
-        }, window.CND_CONFIG.DEBOUNCE_DELAY);
+    if (!updatedProfile || updatedProfile.role !== 'model') return;
+
+    if (window.profileUpdateTimeout) {
+        clearTimeout(window.profileUpdateTimeout); // reinicia el debounce
     }
+
+    window.profileUpdateTimeout = setTimeout(() => {
+        if (typeof window.loadActiveModels === 'function') {
+            window.loadActiveModels(); // existe desde Fase 2
+        }
+    }, window.CND_CONFIG.DEBOUNCE_DELAY);
 }
 
 // ============================================================================
 // FUNCIÓN: showSection()
-// Muestra una sección específica de la SPA
+// Navegación SPA: muestra una sección y marca el nav activo
 // ============================================================================
 function showSection(sectionId) {
-    // Ocultar todas las secciones
     document.querySelectorAll('.section').forEach(section => {
-        section.classList.remove('active');
+        section.classList.remove('active'); // oculta todas
     });
 
-    // Mostrar la sección solicitada
     const targetSection = document.getElementById(sectionId);
     if (targetSection) {
-        targetSection.classList.add('active');
+        targetSection.classList.add('active'); // muestra la pedida
         window.appState.currentSection = sectionId;
     }
 
-    // Actualizar navegación activa
     document.querySelectorAll('.nav-item').forEach(item => {
-        item.classList.remove('active');
-        if (item.dataset.section === sectionId) {
-            item.classList.add('active');
-        }
+        item.classList.toggle('active', item.dataset.section === sectionId);
     });
 
-    // Cargar contenido específico de la sección
-    loadSectionContent(sectionId);
+    loadSectionContent(sectionId); // carga datos de la sección
 }
 
 // ============================================================================
 // FUNCIÓN: loadSectionContent()
-// Carga el contenido específico de cada sección
+// Enruta el render de cada sección a su función correspondiente
 // ============================================================================
 function loadSectionContent(sectionId) {
-    switch (sectionId) {
-        case 'sectionHome':
-            if (typeof loadActiveModels === 'function') {
-                loadActiveModels();
-            }
-            break;
-        case 'sectionProfile':
-            if (typeof loadProfileSection === 'function') {
-                loadProfileSection();
-            }
-            break;
-        case 'sectionHistory':
-            if (typeof loadHistorySection === 'function') {
-                loadHistorySection();
-            }
-            break;
-        case 'sectionAdmin':
-            if (typeof loadAdminSection === 'function') {
-                loadAdminSection();
-            }
-            break;
+    if (sectionId === 'sectionHome' && typeof window.loadActiveModels === 'function') {
+        window.loadActiveModels(); // Fase 2
+    } else if (sectionId === 'sectionProfile') {
+        renderProfileSection(); // render básico propio de core.js
+    } else if (sectionId === 'sectionHistory') {
+        renderHistoryPlaceholder(); // placeholder hasta Fase 4
+    } else if (sectionId === 'sectionAdmin') {
+        renderAdminPlaceholder(); // placeholder hasta Fase 5
     }
 }
 
 // ============================================================================
+// FUNCIÓN: renderProfileSection()
+// Pinta los datos básicos del propio perfil en la sección Perfil
+// ============================================================================
+function renderProfileSection() {
+    const container = document.getElementById('profileContent');
+    if (!container) return;
+
+    const profile = window.appState.currentUser && window.appState.currentUser.profile;
+    if (!profile) {
+        container.innerHTML = '<p style="color:#94A3B8;">Cargando perfil...</p>';
+        return;
+    }
+
+    // innerHTML = completo (nunca +=, regla A6)
+    container.innerHTML = `
+        <div class="info-row"><span class="info-label">Nombre</span><span class="info-value">${profile.full_name}</span></div>
+        <div class="info-row"><span class="info-label">Correo</span><span class="info-value">${profile.email}</span></div>
+        <div class="info-row"><span class="info-label">Rol</span><span class="info-value">${profile.role}</span></div>
+        <div class="info-row"><span class="info-label">Saldo</span><span class="info-value">${Number(profile.tokens_balance || 0)} tokens</span></div>
+        <div class="info-row"><span class="info-label">Ganancias retenidas</span><span class="info-value">${Number(profile.tokens_retained || 0)} tokens</span></div>
+        <div class="info-row"><span class="info-label">Estado KYC</span><span class="info-value">${profile.kyc_status}</span></div>
+    `;
+}
+
+// ============================================================================
+// FUNCIÓN: renderHistoryPlaceholder()
+// Mensaje informativo hasta que el historial exista (Fase 4)
+// ============================================================================
+function renderHistoryPlaceholder() {
+    const container = document.getElementById('historyContent');
+    if (!container) return;
+    container.innerHTML = '<p style="color:#94A3B8;">El historial de llamadas y transacciones estará disponible en las próximas fases.</p>';
+}
+
+// ============================================================================
+// FUNCIÓN: renderAdminPlaceholder()
+// Mensaje informativo hasta que el panel admin exista (Fase 5)
+// ============================================================================
+function renderAdminPlaceholder() {
+    const container = document.getElementById('adminContent');
+    if (!container) return;
+    container.innerHTML = '<p style="color:#94A3B8;">El panel de administración completo se habilitará en la Fase 5.</p>';
+}
+
+// ============================================================================
 // FUNCIÓN: showToast()
-// Muestra un mensaje toast en la interfaz
+// Notificación flotante autoeliminable (success | error | info)
 // ============================================================================
 function showToast(message, type = 'info') {
     const container = document.getElementById('toastContainer');
@@ -281,37 +281,30 @@ function showToast(message, type = 'info') {
     const toast = document.createElement('div');
     toast.className = `toast ${type}`;
     toast.textContent = message;
-
     container.appendChild(toast);
 
-    // Eliminar toast después de 4 segundos
     setTimeout(() => {
-        toast.style.opacity = '0';
-        setTimeout(() => toast.remove(), 300);
+        toast.style.opacity = '0';          // fade out
+        setTimeout(() => toast.remove(), 300); // retirar del DOM
     }, 4000);
 }
 
 // ============================================================================
 // FUNCIÓN: logout()
-// Cierra la sesión del usuario
+// Limpia intervalos, canal Realtime y sesión; vuelve al login
 // ============================================================================
 async function logout() {
     try {
-        // Detener heartbeat
         if (window.appState.heartbeatInterval) {
-            clearInterval(window.appState.heartbeatInterval);
+            clearInterval(window.appState.heartbeatInterval); // detener heartbeat
         }
 
-        // Desuscribirse de tiempo real
         if (window.appState.realtimeSubscription) {
-            window.supabase.removeChannel(window.appState.realtimeSubscription);
+            window.supabase.removeChannel(window.appState.realtimeSubscription); // cerrar canal
         }
 
-        // Cerrar sesión en Supabase
-        await window.supabase.auth.signOut();
-
-        // Redirigir a login
-        window.location.href = 'index.html';
+        await window.supabase.auth.signOut(); // cerrar sesión Auth
+        window.location.href = 'index.html';  // volver al login
     } catch (error) {
         console.error('Error al cerrar sesión:', error);
         showToast('Error al cerrar sesión', 'error');
@@ -319,25 +312,22 @@ async function logout() {
 }
 
 // ============================================================================
-// EVENT LISTENERS: Configuración de navegación
+// EVENT LISTENERS: navegación y arranque
 // ============================================================================
 document.addEventListener('DOMContentLoaded', () => {
-    // Configurar botones de navegación
+    // Clic en cualquier ítem del bottom-nav navega a su sección
     document.querySelectorAll('.nav-item').forEach(item => {
         item.addEventListener('click', () => {
             const sectionId = item.dataset.section;
-            if (sectionId) {
-                showSection(sectionId);
-            }
+            if (sectionId) showSection(sectionId);
         });
     });
 
-    // Inicializar aplicación
-    initApp();
+    initApp(); // arranque principal
 });
 
 // ============================================================================
-// EXPORTAR FUNCIONES GLOBALES
+// EXPOSICIÓN GLOBAL (regla A2: nombres únicos, vía window.*)
 // ============================================================================
 window.initApp = initApp;
 window.loadUserProfile = loadUserProfile;
