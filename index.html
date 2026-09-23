@@ -81,7 +81,7 @@
             border-bottom-color: #00D4FF;
         }
 
-        /* Formularios */
+        /* Formularios conmutables */
         .auth-form {
             display: none;
         }
@@ -148,6 +148,22 @@
         }
 
         .checkbox-group a:hover {
+            text-decoration: underline;
+        }
+
+        /* Fila de enlaces secundarios (reenvío de confirmación) */
+        .link-row {
+            margin-top: 14px;
+            text-align: center;
+            font-size: 14px;
+        }
+
+        .link-row a {
+            color: #00D4FF;
+            text-decoration: none;
+        }
+
+        .link-row a:hover {
             text-decoration: underline;
         }
 
@@ -274,7 +290,7 @@
             <p style="color: #94A3B8; margin-top: 8px;">Plataforma de videollamadas 1:1</p>
         </div>
 
-        <!-- Mensajes de alerta -->
+        <!-- Mensajes de alerta globales del formulario -->
         <div id="authAlert" class="alert"></div>
 
         <!-- Tabs -->
@@ -294,6 +310,11 @@
                 <input type="password" id="loginPassword" required>
             </div>
             <button type="submit" class="btn" id="loginBtn">Iniciar Sesión</button>
+
+            <!-- Reenvío de enlace para cuentas pendientes de confirmación -->
+            <div class="link-row">
+                <a href="#" id="resendConfirmationLink">¿No confirmaste tu correo? Reenviar enlace</a>
+            </div>
         </form>
 
         <!-- Formulario de Registro -->
