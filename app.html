@@ -22,7 +22,7 @@
             padding-bottom: 80px; /* espacio para bottom-nav fija */
         }
 
-        h1, h2, h3 {
+        h1, h2, h3, h4 {
             font-family: 'Space Grotesk', sans-serif;
         }
 
@@ -175,12 +175,340 @@
             font-weight: 600;
         }
 
-        /* Grid de modelos (se llenará en Fase 2) */
+        /* Grid de modelos en línea */
         .models-grid {
             display: grid;
             grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
             gap: 16px;
             margin-top: 20px;
+        }
+
+        .model-card {
+            background: rgba(30, 41, 59, 0.5);
+            border: 1px solid rgba(100, 116, 139, 0.3);
+            border-radius: 12px;
+            overflow: hidden;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .model-card:hover {
+            transform: translateY(-4px);
+            border-color: #00D4FF;
+            box-shadow: 0 8px 16px rgba(0, 212, 255, 0.2);
+        }
+
+        .model-avatar {
+            width: 100%;
+            aspect-ratio: 1;
+            background: linear-gradient(135deg, #1E293B 0%, #334155 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 48px;
+            font-weight: 700;
+            color: #64748B;
+        }
+
+        .model-info {
+            padding: 16px;
+        }
+
+        .model-name {
+            font-size: 16px;
+            font-weight: 600;
+            margin-bottom: 4px;
+        }
+
+        .model-rate {
+            font-size: 14px;
+            color: #00D4FF;
+            font-weight: 600;
+        }
+
+        .model-meta {
+            font-size: 12px;
+            color: #94A3B8;
+            margin-top: 6px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .model-status {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 600;
+            margin-top: 8px;
+        }
+
+        .status-online {
+            background: rgba(34, 197, 94, 0.2);
+            color: #86EFAC;
+        }
+
+        .badge-incall {
+            background: rgba(245, 158, 11, 0.2);
+            color: #FCD34D;
+        }
+
+        /* Estrellas de calificación (SVG, sin emojis) */
+        .stars {
+            display: inline-flex;
+            gap: 2px;
+            vertical-align: middle;
+        }
+
+        .stars svg {
+            width: 14px;
+            height: 14px;
+            color: #F59E0B;
+        }
+
+        .stars svg.off {
+            color: #334155;
+        }
+
+        /* Switch de disponibilidad (toggle CSS puro) */
+        .switch {
+            position: relative;
+            display: inline-block;
+            width: 52px;
+            height: 28px;
+        }
+
+        .switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+        .slider {
+            position: absolute;
+            inset: 0;
+            background: #334155;
+            border-radius: 999px;
+            transition: 0.3s;
+            cursor: pointer;
+        }
+
+        .slider::before {
+            content: "";
+            position: absolute;
+            width: 22px;
+            height: 22px;
+            left: 3px;
+            top: 3px;
+            background: #E2E8F0;
+            border-radius: 50%;
+            transition: 0.3s;
+        }
+
+        .switch input:checked + .slider {
+            background: #22C55E;
+        }
+
+        .switch input:checked + .slider::before {
+            transform: translateX(24px);
+        }
+
+        .switch input:focus-visible + .slider {
+            outline: 2px solid #00D4FF; /* foco visible (regla D7) */
+        }
+
+        .avail-state {
+            font-size: 13px;
+            font-weight: 700;
+            padding: 4px 10px;
+            border-radius: 12px;
+        }
+
+        .avail-state.on {
+            background: rgba(34, 197, 94, 0.2);
+            color: #86EFAC;
+        }
+
+        .avail-state.off {
+            background: rgba(239, 68, 68, 0.2);
+            color: #FCA5A5;
+        }
+
+        /* Textos de ayuda y avisos */
+        .hint {
+            color: #94A3B8;
+            font-size: 13px;
+            margin-top: 8px;
+            line-height: 1.5;
+        }
+
+        .kyc-warn {
+            color: #FCD34D;
+        }
+
+        .empty-note {
+            color: #94A3B8;
+            margin-top: 20px;
+        }
+
+        /* Formulario del editor de perfil público */
+        .form-row {
+            margin-bottom: 12px;
+        }
+
+        .form-row label {
+            display: block;
+            font-size: 13px;
+            color: #CBD5E1;
+            margin-bottom: 6px;
+            font-weight: 600;
+        }
+
+        .form-row input,
+        .form-row textarea {
+            width: 100%;
+            padding: 10px;
+            background: rgba(30, 41, 59, 0.5);
+            border: 1px solid rgba(100, 116, 139, 0.3);
+            border-radius: 8px;
+            color: #E2E8F0;
+            font-size: 14px;
+            font-family: inherit;
+        }
+
+        .form-row input:focus,
+        .form-row textarea:focus {
+            outline: none;
+            border-color: #00D4FF;
+        }
+
+        /* Galería de fotos */
+        .gallery-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
+            gap: 10px;
+            margin-top: 12px;
+        }
+
+        .gallery-item {
+            position: relative;
+            aspect-ratio: 1;
+            border-radius: 8px;
+            overflow: hidden;
+            border: 1px solid rgba(100, 116, 139, 0.3);
+        }
+
+        .gallery-item img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            display: block;
+        }
+
+        .gallery-del {
+            position: absolute;
+            top: 6px;
+            right: 6px;
+            width: 26px;
+            height: 26px;
+            border: none;
+            border-radius: 6px;
+            background: rgba(11, 15, 23, 0.8);
+            color: #FCA5A5;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .gallery-del svg {
+            width: 14px;
+            height: 14px;
+        }
+
+        .gallery-title {
+            margin-top: 20px;
+            margin-bottom: 4px;
+            font-size: 15px;
+            color: #CBD5E1;
+        }
+
+        /* Modal de perfil de modelo (único y reutilizable, regla A12) */
+        .modal-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.8);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 900;
+            padding: 20px;
+        }
+
+        .modal-overlay.active {
+            display: flex;
+        }
+
+        .modal-card {
+            position: relative;
+            background: #0F172A;
+            border: 1px solid rgba(100, 116, 139, 0.3);
+            border-radius: 12px;
+            padding: 28px;
+            max-width: 560px;
+            width: 100%;
+            max-height: 85vh;
+            overflow-y: auto;
+        }
+
+        .modal-x {
+            position: absolute;
+            top: 12px;
+            right: 12px;
+            width: 32px;
+            height: 32px;
+            border: 1px solid rgba(100, 116, 139, 0.4);
+            border-radius: 8px;
+            background: rgba(30, 41, 59, 0.6);
+            color: #E2E8F0;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal-x svg {
+            width: 16px;
+            height: 16px;
+        }
+
+        .modal-head {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            margin-bottom: 16px;
+        }
+
+        .modal-avatar {
+            width: 72px;
+            height: 72px;
+            aspect-ratio: auto;
+            border-radius: 50%;
+            font-size: 28px;
+            flex-shrink: 0;
+        }
+
+        .modal-title {
+            font-size: 22px;
+            color: #F9FAFB;
+        }
+
+        .modal-bio {
+            margin-top: 12px;
+            color: #CBD5E1;
+            font-size: 14px;
+            line-height: 1.6;
         }
 
         /* Botones */
@@ -199,6 +527,10 @@
         .btn:hover {
             transform: translateY(-2px);
             box-shadow: 0 8px 16px rgba(0, 212, 255, 0.3);
+        }
+
+        .btn-secondary {
+            background: rgba(100, 116, 139, 0.3);
         }
 
         .btn-danger {
@@ -270,10 +602,15 @@
 
     <!-- Contenido principal de la SPA -->
     <main class="app-content">
-        <!-- Sección: Home (modelos en línea, se llena en Fase 2) -->
+        <!-- Sección: Home (panel de modelo o listado de modelos online) -->
         <section id="sectionHome" class="section active">
             <h2>Modelos en Línea</h2>
             <p style="color: #94A3B8; margin-top: 8px;">Conecta con modelos disponibles ahora</p>
+
+            <!-- Zona exclusiva de modelos: disponibilidad, editor y galería -->
+            <div id="availabilityZone" style="margin-top: 20px;"></div>
+
+            <!-- Grid de tarjetas de modelos (innerHTML= siempre, regla A6) -->
             <div id="modelsContainer" class="models-grid"></div>
         </section>
 
@@ -301,6 +638,16 @@
             <div id="adminContent" style="margin-top: 20px;"></div>
         </section>
     </main>
+
+    <!-- Modal único de perfil de modelo (creado una vez, regla A12) -->
+    <div id="modelModal" class="modal-overlay" role="dialog" aria-modal="true" aria-label="Perfil de modelo">
+        <div class="modal-card">
+            <button class="modal-x" id="modelModalClose" aria-label="Cerrar perfil">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg>
+            </button>
+            <div id="modelModalBody"></div>
+        </div>
+    </div>
 
     <!-- Bottom Navigation con iconos SVG (sin emojis, regla D1) -->
     <nav class="bottom-nav">
@@ -330,8 +677,9 @@
     <!-- Contenedor de notificaciones toast -->
     <div class="toast-container" id="toastContainer"></div>
 
-    <!-- Scripts: SOLO los que existen en Fase 1 (cada uno UNA vez, regla A1) -->
+    <!-- Scripts: cada archivo UNA sola vez y en orden (regla A1) -->
     <script type="module" src="js/config.js"></script>
     <script type="module" src="js/core.js"></script>
+    <script type="module" src="js/models.js"></script>
 </body>
 </html>
