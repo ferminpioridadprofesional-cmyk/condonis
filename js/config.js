@@ -7,8 +7,9 @@
 // URL del proyecto Supabase entregada por el dueño
 const SUPABASE_URL = 'https://xvnefjjufadwkhzavgni.supabase.co';
 
-// Clave pública anon entregada por el dueño (segura para cliente)
-const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inh2bmVmamp1ZmFkd2toemF2Z25pIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTAxNzM0MDgsImV4cCI6MjIwNTc0OTQwOH0.yW-g_DNL9DMOlWI8tkLyHSNofZCgrXdLGgzfu4XjPFQ';
+// Clave pública anon EXACTA entregada por el dueño (restaurada en V1.3.3
+// tras detectarse un carácter alterado en la entrega V1.3.2)
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inh2bmVmamp1ZmFkd2toemF2Z25pIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTAxNzM0MDgsImV4cCI6MjEwNTc0OTQwOH0.yW-g_DNL9DMOlWI8tkLyHSNofZCgrXdLGgzfu4XjPFQ';
 
 // Importar el cliente oficial de Supabase desde CDN (módulo ES)
 import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm';
@@ -38,7 +39,7 @@ window.CND_CONFIG = {
 };
 
 // Marcador de build (regla R7): verificar en consola tras cada entrega
-window.CND_BUILD = 'FASE-1-V1.3.2-2026-09-24';
+window.CND_BUILD = 'FASE-1-V1.3.3-2026-09-24';
 
 // Exportación para módulos que prefieran import explícito
 export { SUPABASE_URL, SUPABASE_ANON_KEY };
