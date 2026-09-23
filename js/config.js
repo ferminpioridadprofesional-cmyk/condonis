@@ -38,7 +38,7 @@ window.CND_CONFIG = {
 };
 
 // Marcador de build (regla R7): verificar en consola tras cada entrega
-window.CND_BUILD = 'FASE-1-V1.1-2026-09-24';
+window.CND_BUILD = 'FASE-1-V1.3-2026-09-24';
 
 // Exportación para módulos que prefieran import explícito
 export { SUPABASE_URL, SUPABASE_ANON_KEY };
