@@ -1700,3 +1700,61 @@ Error imputable a la transcripción de la IA, no al proyecto del dueño.
 ---
 
 *Este archivo se actualiza en cada entrega. Nunca se borra historial.*
+
+
+---
+
+## FASE 2 - Modelos y Presencia (V2.0)
+**Fecha:** 24 de septiembre de 2026  
+**Versión:** FASE-2-V2.0-2026-09-24
+
+### Alcance cumplido (Sección 13, Fase 2):
+- Listado de modelos SOLO online (RPC get_active_models + fallback A11).
+- Perfil público con galería (modal único reutilizable, regla A12).
+- Presencia completa: toggle inmediato (P1), heartbeat 20s (P2),
+  beacon offline con fetch keepalive en pagehide (P3), filtro <90s (P4),
+  Realtime con debounce 150ms y innerHTML= (P5/A6/A7), refresco <2s (P6).
+- Editor de perfil público de modelo: tarifa (cliente ve el doble),
+  especialidad y bio, guardados en role_details propio.
+- Galería en Storage: bucket público model-gallery, subida/borrado por
+  carpeta propia ({model_id}/archivo), políticas RLS de storage.
+
+### SQL Fase 2 (script completo e idempotente):
+- ALTER PUBLICATION supabase_realtime ADD TABLE public.profiles (con guardia
+  idempotente) y REPLICA IDENTITY FULL para payload.new completo.
+- Bucket storage 'model-gallery' público + 3 políticas (lectura pública,
+  insert y delete solo dueña con has_role('model')).
+- RPC get_model_profile(uuid) con to_jsonb (regla A5).
+- verify_schema() ampliada: fn_get_model_profile, bucket_galeria,
+  realtime_profiles.
+
+### Archivos tocados:
+1. **js/models.js (NUEVO):** initModels, loadActiveModels, fetchActiveModels,
+   cardHtml, starsHtml, renderModelHome, bindModelHomeEvents, setPresence,
+   startHeartbeat, stopHeartbeat, touchPresence, beaconOffline,
+   loadOwnDetails, saveModelProfile, renderGallery, uploadGalleryFile,
+   deleteGalleryFile, openModelProfile, closeModelModal.
+2. **app.html (re-entregado completo):** zona #availabilityZone, modal
+   #modelModal único, estilos de switch/galería/estrellas/modal, script
+   js/models.js añadido UNA vez.
+3. **js/core.js (re-entregado completo):** se retira la presencia automática
+   (ahora la controla models.js con toggle explícito), se añade el gancho
+   window.onAppReady() tras cargar perfil; Realtime y debounce intactos.
+4. **js/config.js (re-entregado completo):** build tag FASE-2-V2.0-2026-09-24.
+
+### Archivos NO tocados (regla R10):
+- index.html, js/auth.js, confirm.html, js/confirm.js, tablas y RPCs de
+  negocio (start_call, tick_call, etc. siguen intactas de V1.1/V1.3.2).
+
+### Checklist de verificación Fase 2:
+1. SQL Fase 2 ejecutado → Success; verify_schema() todo true.
+2. Archivos subidos; consola muestra FASE-2-V2.0-2026-09-24.
+3. Login MODELO: tarjeta Disponibilidad con switch; al activarlo, toast y
+   estado "En linea"; heartbeat renueva last_seen cada 20s (verificable en
+   Table Editor viendo last_seen avanzar).
+4. Login CLIENTE (otra ventana/incognito): la modelo aparece en <2s.
+5. MODELO desactiva el switch: desaparece del cliente en <2s.
+6. MODELO guarda tarifa 10 → cliente ve 20 tokens/min en tarjeta y modal.
+7. MODELO sube una foto → aparece en su galería y en el modal del cliente.
+8. MODELO cierra la pestaña → cliente la ve desaparecer (beacon offline).
+9. Cero errores rojos en consola en ambos roles.
