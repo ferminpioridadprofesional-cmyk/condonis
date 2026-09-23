@@ -1,41 +1,44 @@
 // ============================================================================
 // CONDONIS - CONFIGURACIÓN GLOBAL
-// Este archivo contiene credenciales de Supabase y constantes globales
+// Credenciales de Supabase, cliente, constantes y marcador de build.
+// ÚNICO lugar del proyecto donde viven las credenciales (regla R4).
 // ============================================================================
 
-// Credenciales de Supabase (únicas credenciales del sistema)
+// URL del proyecto Supabase entregada por el dueño
 const SUPABASE_URL = 'https://xvnefjjufadwkhzavgni.supabase.co';
+
+// Clave pública anon entregada por el dueño (segura para cliente)
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inh2bmVmamp1ZmFkd2toemF2Z25pIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTAxNzM0MDgsImV4cCI6MjEwNTc0OTQwOH0.yW-g_DNL9DMOlWI8tkLyHSNofZCgrXdLGgzfu4XjPFQ';
 
-// Importar cliente de Supabase desde CDN
+// Importar el cliente oficial de Supabase desde CDN (módulo ES)
 import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm';
 
-// Crear instancia global del cliente Supabase
+// Instancia global del cliente: todos los módulos usan window.supabase
 window.supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-// Configuración de ICE Servers para WebRTC (solo STUN públicos gratuitos)
+// ICE Servers GRATUITOS para WebRTC (solo STUN públicos, sin TURN de pago)
 window.CND_ICE_SERVERS = [
     { urls: ['stun:stun.l.google.com:19302', 'stun:stun1.l.google.com:19302'] },
     { urls: 'stun:stun.cloudflare.com:3478' },
     { urls: 'stun:stun.services.mozilla.com' },
-    { urls: 'stun:openrelay.metered.ca:80' }
+    { urls: 'stun:openrelay.metered.ca:80' } // STUN público (NO es TURN)
 ];
 
-// Constantes globales de la aplicación
+// Constantes globales de comportamiento de la app
 window.CND_CONFIG = {
-    APP_NAME: 'CONDONIS',
-    COMMISSION_PCT: 50, // Comisión por defecto de la app
-    MIN_RECHARGE: 10, // Recarga mínima de tokens
-    KYC_REQUIRED: true, // KYC obligatorio para modelos
-    HEARTBEAT_INTERVAL: 20000, // Intervalo de heartbeat en ms (20s)
-    PRESENCE_TIMEOUT: 90000, // Timeout de presencia en ms (90s)
-    CALL_TIMEOUT: 15000, // Timeout de conexión de llamada en ms (15s)
-    DEBOUNCE_DELAY: 150, // Delay de debounce para actualizaciones en ms
-    TICK_INTERVAL: 10000 // Intervalo de tick de llamada en ms (10s)
+    APP_NAME: 'CONDONIS',              // Nombre visible de la aplicación
+    COMMISSION_PCT: 50,                // Comisión por defecto de la app (%)
+    MIN_RECHARGE: 10,                  // Recarga mínima de tokens
+    KYC_REQUIRED: true,                // KYC obligatorio para modelos
+    HEARTBEAT_INTERVAL: 20000,         // Heartbeat de presencia cada 20s
+    PRESENCE_TIMEOUT: 90000,           // Presencia válida si last_seen < 90s
+    CALL_TIMEOUT: 15000,               // Corte automático de llamada a los 15s
+    DEBOUNCE_DELAY: 150,               // Debounce de refrescos Realtime (150ms)
+    TICK_INTERVAL: 10000               // Tick de cobro acumulado cada 10s
 };
 
-// Marcador de versión del build
-window.CND_BUILD = 'FASE-1-V1.0-2026-09-24';
+// Marcador de build (regla R7): verificar en consola tras cada entrega
+window.CND_BUILD = 'FASE-1-V1.1-2026-09-24';
 
-// Exportar para uso en módulos
+// Exportación para módulos que prefieran import explícito
 export { SUPABASE_URL, SUPABASE_ANON_KEY };
