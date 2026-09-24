@@ -1,47 +1,41 @@
 // ============================================================================
-// CONDONIS - MODELS: Listado en vivo, perfil público con galería y presencia
-// Reglas que cumple: P1-P6 (presencia), A5-A7 (RPC robusta, innerHTML=,
-// debounce), A11 (fallback si RPC falta), A12 (modal único reutilizable).
+// CONDONIS - MODELS: Panel de modelo, KYC, listado en vivo, galería
 // ============================================================================
 
-// Credenciales para el beacon offline (fetch keepalive al cerrar pestaña)
 import { SUPABASE_URL, SUPABASE_ANON_KEY } from './config.js';
 
-// Estado LOCAL del módulo (no global, para no colisionar, regla A2)
-let modelsClickBound = false;  // delegación de clics atada una sola vez
-let presenceOnline = false;    // disponibilidad propia de la modelo
-let heartbeatTimer = null;     // id del intervalo de heartbeat (20s)
-let accessToken = '';          // JWT vigente para el beacon de salida
-let ownDetails = null;         // role_details propio cacheado (editor)
+// Tipos de documento KYC aceptados (legal en TyC)
+const KYC_DOC_TYPES = [
+    { id: 'id_front',         label: 'Cédula / ID (frente)',            required: true },
+    { id: 'id_back',          label: 'Cédula / ID (reverso)',           required: true },
+    { id: 'passport',         label: 'Pasaporte (página con foto)',     required: false },
+    { id: 'license',          label: 'Licencia de conducción',          required: false },
+    { id: 'protection_card',  label: 'Carnet de protección temporal',   required: false },
+    { id: 'selfie_with_id',   label: 'Selfie sosteniendo tu documento', required: true }
+];
+
+let modelsClickBound = false;
+let presenceOnline = false;
+let heartbeatTimer = null;
+let accessToken = '';
+let ownDetails = null;
 
 // ============================================================================
-// FUNCIÓN: initModels()
-// Arranque del módulo: lo invoca core.js vía window.onAppReady cuando el
-// perfil ya está cargado. Configura presencia (modelos) y primer render.
+// initModels: arranque del módulo (lo llama core.js vía onAppReady)
 // ============================================================================
 async function initModels() {
     const user = window.appState.currentUser;
-    if (!user || !user.profile) return; // seguridad: sin perfil aún
+    if (!user || !user.profile) return;
 
     if (user.profile.role === 'model') {
-        // Guardar JWT para el beacon offline de pagehide (regla P3)
         const { data } = await window.supabase.auth.getSession();
         accessToken = data.session ? data.session.access_token : '';
-
-        // Estado inicial de presencia leído del perfil (sin auto-encender)
         presenceOnline = !!user.profile.is_online;
-
-        // Cargar role_details propio para prellenar el editor
         await loadOwnDetails();
-
-        // Si entró ya marcada online (sesión previa), reanudar heartbeat
         if (presenceOnline) startHeartbeat();
-
-        // Al cerrar/ocultar pestaña: marcar offline de inmediato (P3)
         window.addEventListener('pagehide', beaconOffline);
     }
 
-    // Delegación de clics en las tarjetas (una sola vez, regla A12)
     if (!modelsClickBound) {
         const container = document.getElementById('modelsContainer');
         if (container) {
@@ -53,59 +47,48 @@ async function initModels() {
         }
     }
 
-    // Cerrar modal de perfil: botón X y clic fuera de la tarjeta
     const overlay = document.getElementById('modelModal');
     const closeBtn = document.getElementById('modelModalClose');
     if (closeBtn) closeBtn.addEventListener('click', closeModelModal);
     if (overlay) {
         overlay.addEventListener('click', (e) => {
-            if (e.target === overlay) closeModelModal(); // clic en el fondo
+            if (e.target === overlay) closeModelModal();
         });
     }
 
-    await loadActiveModels(); // primer pintado del listado o del home modelo
+    await loadActiveModels();
 }
 
-// core.js llama a esta función cuando la sesión y el perfil están listos
 window.onAppReady = initModels;
 
 // ============================================================================
-// FUNCIÓN: loadActiveModels()
-// Refresca el contenedor según rol: modelos ven su panel; el resto ve el
-// listado de modelos online. Siempre innerHTML = completo (regla A6).
+// loadActiveModels: refresca según rol (panel modelo o listado cliente)
 // ============================================================================
 async function loadActiveModels() {
     const user = window.appState.currentUser;
-    if (!user || !user.profile) return; // aún no listo: core reintentará
-
+    if (!user || !user.profile) return;
     const container = document.getElementById('modelsContainer');
     if (!container) return;
 
-    // Rol modelo: su panel de disponibilidad, editor y galería
     if (user.profile.role === 'model') {
         renderModelHome();
         return;
     }
 
-    // Cliente/admin/agencia: listado de modelos activas ahora
     const models = await fetchActiveModels();
     window.appState.models = models || [];
 
     if (models && models.length > 0) {
-        container.innerHTML = models.map(cardHtml).join(''); // reemplazo total
+        container.innerHTML = models.map(cardHtml).join('');
     } else {
         container.innerHTML = '<p class="empty-note">No hay modelos disponibles en este momento. Vuelve en unos minutos.</p>';
     }
 }
 
-// Expuesta global: core.js la llama con debounce de 150ms en cada UPDATE
-// de profiles recibido por Realtime (reglas P5/A7)
 window.loadActiveModels = loadActiveModels;
 
 // ============================================================================
-// FUNCIÓN: fetchActiveModels()
-// Obtiene modelos online vía RPC get_active_models; si la RPC faltara,
-// aplica fallback directo sobre profiles (regla A11).
+// fetchActiveModels: RPC con fallback
 // ============================================================================
 async function fetchActiveModels() {
     try {
@@ -114,8 +97,6 @@ async function fetchActiveModels() {
         return data || [];
     } catch (err) {
         console.warn('RPC get_active_models no disponible, usando fallback:', err);
-
-        // Fallback: mismas condiciones de presencia, sin tarifa (RLS)
         const since = new Date(Date.now() - window.CND_CONFIG.PRESENCE_TIMEOUT).toISOString();
         const { data } = await window.supabase
             .from('profiles')
@@ -128,27 +109,19 @@ async function fetchActiveModels() {
             .gte('last_seen', since);
 
         return (data || []).map(p => ({
-            id: p.id,
-            full_name: p.full_name,
-            avatar_url: p.avatar_url,
-            rating: p.rating,
-            is_online: p.is_online,
-            in_call: p.in_call,
-            client_rate: null,   // sin tarifa en fallback: se muestra guion
-            worker_level: 1
+            id: p.id, full_name: p.full_name, avatar_url: p.avatar_url,
+            rating: p.rating, is_online: p.is_online, in_call: p.in_call,
+            client_rate: 0, model_rate: 0, level_name: 'Sin nivel', worker_level: 1
         }));
     }
 }
 
 // ============================================================================
-// FUNCIÓN: cardHtml()
-// Construye el HTML de una tarjeta de modelo (sin emojis, regla D1)
+// cardHtml: tarjeta de modelo en el grid (sin emojis)
 // ============================================================================
 function cardHtml(m) {
     const initial = (m.full_name || 'M').charAt(0).toUpperCase();
-    const rate = (m.client_rate === null || m.client_rate === undefined)
-        ? '--'
-        : Number(m.client_rate);
+    const rate = Number(m.client_rate || 0);
     const badge = m.in_call
         ? '<span class="model-status badge-incall">En llamada</span>'
         : '<span class="model-status status-online">En linea</span>';
@@ -159,17 +132,16 @@ function cardHtml(m) {
             <div class="model-info">
                 <div class="model-name">${m.full_name}</div>
                 <div class="model-rate">${rate} tokens/min</div>
-                <div class="model-meta">Nivel ${m.worker_level || 1} ${starsHtml(m.rating)}</div>
+                <div class="model-meta">
+                    <span class="level-badge">${m.level_name || 'Modelo'}</span>
+                    ${starsHtml(m.rating)}
+                </div>
                 ${badge}
             </div>
         </div>
     `;
 }
 
-// ============================================================================
-// FUNCIÓN: starsHtml()
-// Cinco estrellas SVG; las llenas según el rating redondeado (regla D4)
-// ============================================================================
 function starsHtml(rating) {
     const full = Math.round(Number(rating || 0));
     let out = '<span class="stars" aria-label="Calificacion ' + full + ' de 5">';
@@ -181,9 +153,7 @@ function starsHtml(rating) {
 }
 
 // ============================================================================
-// FUNCIÓN: renderModelHome()
-// Home exclusivo de modelos: disponibilidad, editor público y galería,
-// más la vista previa de cómo la ven los clientes.
+// renderModelHome: home exclusivo para modelos (KYC + nivel + galería)
 // ============================================================================
 async function renderModelHome() {
     const user = window.appState.currentUser;
@@ -192,15 +162,64 @@ async function renderModelHome() {
     const container = document.getElementById('modelsContainer');
     if (!zone || !container) return;
 
-    const kycOk = profile.kyc_status === 'approved';
-    const clientRate = ownDetails ? Number(ownDetails.rate_per_minute || 0) * 2 : 0;
+    const kycStatus = profile.kyc_status;
+    const kycOk = kycStatus === 'approved';
+    const level = ownDetails && ownDetails.level_id
+        ? await fetchLevel(ownDetails.level_id) : null;
 
-    // Aviso honesto de KYC pendiente (no aparece en listados hasta aprobar)
-    const kycNotice = kycOk ? '' : `
-        <p class="hint kyc-warn">Tu KYC esta en estado "${profile.kyc_status}". No apareceras en los listados hasta que un administrador lo apruebe.</p>
-    `;
+    const clientRate = level ? Number(level.rate_per_minute) : 0;
+    const modelRate = level ? Number(level.rate_per_minute) * 0.5 : 0;
 
-    zone.innerHTML = `
+    // Bloque de KYC según estado
+    let kycBlock = '';
+    if (kycOk) {
+        kycBlock = `
+            <div class="card kyc-card kyc-ok">
+                <div class="card-header">
+                    <span class="card-title">Verificación KYC</span>
+                    <span class="kyc-badge kyc-approved">Aprobada</span>
+                </div>
+                <p class="hint">Tu identidad está verificada. Ya eres visible para los clientes.</p>
+                <button class="btn btn-secondary" id="btnViewKycDocs">Ver mis documentos</button>
+            </div>
+        `;
+    } else if (kycStatus === 'pending') {
+        kycBlock = `
+            <div class="card kyc-card kyc-pending">
+                <div class="card-header">
+                    <span class="card-title">Verificación KYC</span>
+                    <span class="kyc-badge kyc-pending">En revisión</span>
+                </div>
+                <p class="hint">Tus documentos están en revisión por un administrador. Te notificaremos cuando se aprueben.</p>
+                <button class="btn btn-secondary" id="btnViewKycDocs">Ver mis documentos</button>
+            </div>
+        `;
+    } else if (kycStatus === 'rejected') {
+        kycBlock = `
+            <div class="card kyc-card kyc-rejected">
+                <div class="card-header">
+                    <span class="card-title">Verificación KYC</span>
+                    <span class="kyc-badge kyc-rejected">Rechazada</span>
+                </div>
+                <p class="hint kyc-warn">Tus documentos fueron rechazados. Sube documentos válidos y vuelve a enviarlos.</p>
+                <button class="btn" id="btnOpenKyc">Reenviar documentos</button>
+            </div>
+        `;
+    } else {
+        kycBlock = `
+            <div class="card kyc-card kyc-none">
+                <div class="card-header">
+                    <span class="card-title">Verificación KYC obligatoria</span>
+                    <span class="kyc-badge kyc-none">Pendiente</span>
+                </div>
+                <p class="hint">Por seguridad y cumplimiento legal, debes verificar tu identidad antes de recibir llamadas. Solo serás visible cuando un administrador apruebe tus documentos.</p>
+                <button class="btn" id="btnOpenKyc">Iniciar verificación</button>
+            </div>
+        `;
+    }
+
+    // Bloque de disponibilidad (solo activo si KYC aprobado)
+    const availBlock = kycOk ? `
         <div class="card avail-card">
             <div class="card-header">
                 <span class="card-title">Disponibilidad</span>
@@ -210,17 +229,37 @@ async function renderModelHome() {
                 <input type="checkbox" id="availSwitch" ${presenceOnline ? 'checked' : ''}>
                 <span class="slider"></span>
             </label>
-            <p class="hint">Al activarte, los clientes te ven en menos de 2 segundos. Al desactivarte, desapareces al instante. Tu estado se renueva solo cada 20 segundos mientras estes en linea.</p>
-            ${kycNotice}
+            <p class="hint">Al activarte, los clientes te ven en menos de 2 segundos.</p>
         </div>
+    ` : '';
 
+    // Bloque de nivel asignado por admin (solo lectura para la modelo)
+    const levelBlock = `
+        <div class="card">
+            <div class="card-header">
+                <span class="card-title">Mi nivel</span>
+                ${level ? `<span class="level-badge big">${level.name}</span>` : '<span class="kyc-badge kyc-none">Sin nivel</span>'}
+            </div>
+            ${level ? `
+                <div class="info-row">
+                    <span class="info-label">El cliente paga</span>
+                    <span class="info-value">${Number(level.rate_per_minute)} tokens/min</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">Tu ganas (50%)</span>
+                    <span class="info-value">${Number(level.rate_per_minute) * 0.5} tokens/min</span>
+                </div>
+                <p class="hint">El administrador asigna y modifica los niveles y tarifas.</p>
+            ` : `
+                <p class="hint">Aún no tienes un nivel asignado. El administrador debe asignártelo cuando apruebe tu KYC.</p>
+            `}
+        </div>
+    `;
+
+    // Bloque de bio/especialidad (editables por la modelo)
+    const bioBlock = `
         <div class="card">
             <div class="card-header"><span class="card-title">Mi perfil publico</span></div>
-            <div class="form-row">
-                <label for="editRate">Tarifa por minuto (tokens que tu recibes)</label>
-                <input id="editRate" type="number" min="1" step="1" value="${ownDetails ? Number(ownDetails.rate_per_minute || 0) : 0}">
-            </div>
-            <p class="hint">El cliente vera el doble: <strong id="previewClientRate">${clientRate}</strong> tokens/min (comision de la app incluida).</p>
             <div class="form-row">
                 <label for="editSpecialty">Especialidad</label>
                 <input id="editSpecialty" type="text" maxlength="60" value="${ownDetails && ownDetails.specialty ? ownDetails.specialty : ''}">
@@ -231,7 +270,10 @@ async function renderModelHome() {
             </div>
             <button class="btn" id="saveProfileBtn">Guardar cambios</button>
         </div>
+    `;
 
+    // Bloque de galería
+    const galleryBlock = `
         <div class="card">
             <div class="card-header"><span class="card-title">Mi galeria</span></div>
             <button class="btn btn-secondary" id="galleryPick">Subir foto</button>
@@ -240,40 +282,48 @@ async function renderModelHome() {
         </div>
     `;
 
-    // Vista previa: así te ve el cliente cuando estás en línea
-    container.innerHTML = cardHtml({
-        id: profile.id,
-        full_name: profile.full_name,
-        rating: profile.rating,
-        is_online: presenceOnline,
-        in_call: profile.in_call,
-        client_rate: clientRate,
-        worker_level: ownDetails ? ownDetails.worker_level : 1
-    });
+    zone.innerHTML = kycBlock + availBlock + levelBlock + bioBlock + galleryBlock;
 
-    bindModelHomeEvents(); // listeners sobre nodos recién creados
-    await renderGallery(); // pintar miniaturas existentes
+    // Vista previa: tarjeta de cómo te ve el cliente
+    if (kycOk && level) {
+        container.innerHTML = cardHtml({
+            id: profile.id, full_name: profile.full_name,
+            rating: profile.rating, is_online: presenceOnline,
+            in_call: profile.in_call, client_rate: clientRate,
+            model_rate: modelRate, level_name: level.name,
+            worker_level: ownDetails ? ownDetails.worker_level : 1
+        });
+    } else {
+        container.innerHTML = '<p class="hint" style="margin-top:20px;">Previsualización disponible cuando tengas KYC aprobado y nivel asignado.</p>';
+    }
+
+    bindModelHomeEvents();
+    await renderGallery();
 }
 
 // ============================================================================
-// FUNCIÓN: bindModelHomeEvents()
-// Ata listeners del panel de modelo (switch, editor, galería). Los nodos
-// se recrean en cada render, por lo que no hay listeners duplicados.
+// fetchLevel: trae los datos de un nivel (caché simple)
+// ============================================================================
+async function fetchLevel(levelId) {
+    const { data } = await window.supabase
+        .from('kyc_levels')
+        .select('*')
+        .eq('id', levelId)
+        .single();
+    return data;
+}
+
+// ============================================================================
+// bindModelHomeEvents: listeners de los botones del panel modelo
 // ============================================================================
 function bindModelHomeEvents() {
-    const switchEl = document.getElementById('availSwitch');
-    if (switchEl) {
-        switchEl.addEventListener('change', () => setPresence(switchEl.checked));
-    }
+    const openKyc = document.getElementById('btnOpenKyc');
+    const viewDocs = document.getElementById('btnViewKycDocs');
+    if (openKyc) openKyc.addEventListener('click', openKycModal);
+    if (viewDocs) viewDocs.addEventListener('click', openKycModal);
 
-    const rateEl = document.getElementById('editRate');
-    const previewEl = document.getElementById('previewClientRate');
-    if (rateEl && previewEl) {
-        // Reflejo en vivo del precio que verá el cliente (tarifa x2)
-        rateEl.addEventListener('input', () => {
-            previewEl.textContent = String(Number(rateEl.value || 0) * 2);
-        });
-    }
+    const switchEl = document.getElementById('availSwitch');
+    if (switchEl) switchEl.addEventListener('change', () => setPresence(switchEl.checked));
 
     const saveBtn = document.getElementById('saveProfileBtn');
     if (saveBtn) saveBtn.addEventListener('click', saveModelProfile);
@@ -287,41 +337,210 @@ function bindModelHomeEvents() {
 }
 
 // ============================================================================
-// FUNCIÓN: setPresence()
-// Toggle de disponibilidad: escribe is_online + last_seen DE INMEDIATO (P1)
-// y arranca o detiene el heartbeat de 20s (P2).
+// KYC: modal de subida de documentos
 // ============================================================================
-async function setPresence(on) {
-    const user = window.appState.currentUser;
-    presenceOnline = on;
+async function openKycModal() {
+    const overlay = document.getElementById('modelModal');
+    const body = document.getElementById('modelModalBody');
+    if (!overlay || !body) return;
 
-    try {
-        const { error } = await window.supabase
-            .from('profiles')
-            .update({ is_online: on, last_seen: new Date().toISOString() })
-            .eq('id', user.id);
-        if (error) throw error;
+    body.innerHTML = `
+        <h3 class="modal-title">Verificación de identidad (KYC)</h3>
+        <p class="hint" style="margin-bottom:16px;">
+            Sube documentos válidos y legibles. Toda la información es tratada
+            de forma confidencial según nuestra Política de Privacidad y los
+            Términos y Condiciones que aceptaste al registrarte.
+        </p>
+        <div id="kycDocsList"></div>
+        <button class="btn" id="kycSubmitBtn" style="margin-top:16px;">Enviar para revisión</button>
+    `;
+    overlay.classList.add('active');
 
-        if (on) startHeartbeat(); else stopHeartbeat();
+    await renderKycDocs();
 
-        window.showToast(on ? 'Estas en linea: los clientes ya pueden verte' : 'Te has desconectado del listado', 'success');
-        await renderModelHome(); // refrescar switch, aviso y vista previa
-    } catch (err) {
-        console.error('Error al cambiar disponibilidad:', err);
-        window.showToast('No se pudo cambiar tu disponibilidad', 'error');
-        await renderModelHome(); // revertir visualmente al estado real
-    }
+    const submitBtn = document.getElementById('kycSubmitBtn');
+    if (submitBtn) submitBtn.addEventListener('click', submitKyc);
 }
 
 // ============================================================================
-// FUNCIÓN: startHeartbeat() / stopHeartbeat()
-// Renuevan last_seen cada 20s mientras is_online === true (regla P2)
+// renderKycDocs: pinta cada tipo de documento con su input o estado actual
 // ============================================================================
+async function renderKycDocs() {
+    const user = window.appState.currentUser;
+    const list = document.getElementById('kycDocsList');
+    if (!list) return;
+
+    const { data: docs } = await window.supabase
+        .from('kyc_documents')
+        .select('*')
+        .eq('model_id', user.id)
+        .order('created_at', { ascending: false });
+
+    list.innerHTML = KYC_DOC_TYPES.map(t => {
+        const doc = docs && docs.find(d => d.doc_type === t.id);
+        let statusHtml = '';
+        if (doc) {
+            if (doc.status === 'approved') {
+                statusHtml = `<span class="kyc-badge kyc-approved">Aprobado</span>`;
+            } else if (doc.status === 'rejected') {
+                statusHtml = `<span class="kyc-badge kyc-rejected">Rechazado${doc.rejection_reason ? ': ' + doc.rejection_reason : ''}</span>`;
+            } else {
+                statusHtml = `<span class="kyc-badge kyc-pending">En revisión</span>`;
+            }
+        }
+        return `
+            <div class="kyc-doc-row">
+                <div class="kyc-doc-info">
+                    <div class="kyc-doc-label">${t.label} ${t.required ? '<span class="required">*</span>' : ''}</div>
+                    <div>${statusHtml}</div>
+                </div>
+                <div class="kyc-doc-action">
+                    <input type="file" class="kyc-file-input" data-type="${t.id}" accept="image/png,image/jpeg,image/webp" style="display:none">
+                    <button class="btn btn-secondary kyc-upload-btn" data-type="${t.id}">${doc ? 'Reemplazar' : 'Subir'}</button>
+                </div>
+            </div>
+        `;
+    }).join('');
+
+    list.querySelectorAll('.kyc-upload-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const type = btn.dataset.type;
+            const input = list.querySelector(`.kyc-file-input[data-type="${type}"]`);
+            if (input) input.click();
+        });
+    });
+
+    list.querySelectorAll('.kyc-file-input').forEach(input => {
+        input.addEventListener('change', () => uploadKycFile(input, input.dataset.type));
+    });
+}
+
+// ============================================================================
+// uploadKycFile: sube un documento al bucket kyc-docs y registra en tabla
+// ============================================================================
+async function uploadKycFile(input, docType) {
+    const user = window.appState.currentUser;
+    const file = input.files && input.files[0];
+    if (!file) return;
+
+    const safeName = file.name.replace(/[^a-zA-Z0-9.\-_]/g, '_');
+    const path = `${user.id}/${docType}-${Date.now()}-${safeName}`;
+
+    try {
+        const { error: upErr } = await window.supabase.storage
+            .from('kyc-docs')
+            .upload(path, file, { contentType: file.type, upsert: false });
+        if (upErr) throw upErr;
+
+        const publicUrl = window.supabase.storage.from('kyc-docs').getPublicUrl(path).publicUrl;
+
+        // Borrar registros previos del mismo tipo para esta modelo
+        await window.supabase
+            .from('kyc_documents')
+            .delete()
+            .eq('model_id', user.id)
+            .eq('doc_type', docType);
+
+        // Insertar nuevo registro
+        const { error: dbErr } = await window.supabase
+            .from('kyc_documents')
+            .insert({
+                model_id: user.id,
+                doc_type: docType,
+                file_url: publicUrl,
+                status: 'pending'
+            });
+        if (dbErr) throw dbErr;
+
+        // Si es el primer documento de la modelo, marcar perfil como pending
+        const { count } = await window.supabase
+            .from('kyc_documents')
+            .select('*', { count: 'exact', head: true })
+            .eq('model_id', user.id);
+
+        if (window.appState.currentUser.profile.kyc_status === 'none') {
+            await window.supabase
+                .from('profiles')
+                .update({ kyc_status: 'pending' })
+                .eq('id', user.id);
+            window.appState.currentUser.profile.kyc_status = 'pending';
+        }
+
+        window.showToast('Documento subido correctamente', 'success');
+        await renderKycDocs();
+        await renderModelHome();
+    } catch (err) {
+        console.error('Error al subir documento KYC:', err);
+        window.showToast('No se pudo subir el documento', 'error');
+    }
+
+    input.value = '';
+}
+
+// ============================================================================
+// submitKyc: valida documentos requeridos y envía para revisión
+// ============================================================================
+async function submitKyc() {
+    const user = window.appState.currentUser;
+
+    const { data: docs } = await window.supabase
+        .from('kyc_documents')
+        .select('doc_type, status')
+        .eq('model_id', user.id);
+
+    const submitted = (docs || []).map(d => d.doc_type);
+    const missing = KYC_DOC_TYPES.filter(t => t.required && !submitted.includes(t.id));
+
+    if (missing.length > 0) {
+        window.showToast(`Faltan documentos obligatorios: ${missing.map(m => m.label).join(', ')}`, 'error');
+        return;
+    }
+
+    // Marcar perfil como pending si no lo estaba ya
+    if (user.profile.kyc_status !== 'pending' && user.profile.kyc_status !== 'approved') {
+        await window.supabase
+            .from('profiles')
+            .update({ kyc_status: 'pending' })
+            .eq('id', user.id);
+        user.profile.kyc_status = 'pending';
+    }
+
+    window.showToast('Documentos enviados para revisión. Te notificaremos cuando se aprueben.', 'success');
+    closeModelModal();
+    await renderModelHome();
+}
+
+window.openKycModal = openKycModal;
+
+// ============================================================================
+// Presencia y heartbeat
+// ============================================================================
+async function setPresence(on) {
+    const user = window.appState.currentUser;
+    if (!user.profile || user.profile.kyc_status !== 'approved') {
+        window.showToast('No puedes activarte hasta que tu KYC sea aprobado', 'error');
+        await renderModelHome();
+        return;
+    }
+    presenceOnline = on;
+    try {
+        await window.supabase
+            .from('profiles')
+            .update({ is_online: on, last_seen: new Date().toISOString() })
+            .eq('id', user.id);
+        if (on) startHeartbeat(); else stopHeartbeat();
+        window.showToast(on ? 'Estas en linea' : 'Te has desconectado', 'success');
+        await renderModelHome();
+    } catch (err) {
+        console.error('Error al cambiar disponibilidad:', err);
+        window.showToast('No se pudo cambiar tu disponibilidad', 'error');
+        await renderModelHome();
+    }
+}
+
 function startHeartbeat() {
-    stopHeartbeat(); // evita intervalos apilados (regla A12)
-    heartbeatTimer = setInterval(() => {
-        touchPresence(true);
-    }, window.CND_CONFIG.HEARTBEAT_INTERVAL);
+    stopHeartbeat();
+    heartbeatTimer = setInterval(() => touchPresence(true), window.CND_CONFIG.HEARTBEAT_INTERVAL);
 }
 
 function stopHeartbeat() {
@@ -331,10 +550,6 @@ function stopHeartbeat() {
     }
 }
 
-// ============================================================================
-// FUNCIÓN: touchPresence()
-// Escritura simple de presencia (is_online + last_seen) sin UI
-// ============================================================================
 async function touchPresence(on) {
     const user = window.appState.currentUser;
     if (!user) return;
@@ -344,24 +559,16 @@ async function touchPresence(on) {
             .update({ is_online: on, last_seen: new Date().toISOString() })
             .eq('id', user.id);
     } catch (err) {
-        console.error('Heartbeat de presencia falló:', err);
+        console.error('Heartbeat falló:', err);
     }
 }
 
-// ============================================================================
-// FUNCIÓN: beaconOffline()
-// Al cerrar u ocultar la pestaña marca offline con fetch keepalive, que
-// sobrevive a la descarga de la página (regla P3).
-// ============================================================================
 function beaconOffline() {
-    if (!presenceOnline) return; // ya estaba offline: nada que hacer
+    if (!presenceOnline) return;
     presenceOnline = false;
     stopHeartbeat();
-
     const user = window.appState.currentUser;
     if (!user || !accessToken) return;
-
-    // PATCH directo a PostgREST con keepalive: no requiere esperar respuesta
     fetch(`${SUPABASE_URL}/rest/v1/profiles?id=eq.${user.id}`, {
         method: 'PATCH',
         keepalive: true,
@@ -371,12 +578,11 @@ function beaconOffline() {
             'Authorization': `Bearer ${accessToken}`
         },
         body: JSON.stringify({ is_online: false, last_seen: new Date().toISOString() })
-    }).catch(() => {}); // silencioso: la página ya se está cerrando
+    }).catch(() => {});
 }
 
 // ============================================================================
-// FUNCIÓN: loadOwnDetails()
-// Lee el role_details propio para prellenar tarifa, bio y especialidad
+// Perfil público y galería
 // ============================================================================
 async function loadOwnDetails() {
     const user = window.appState.currentUser;
@@ -388,49 +594,33 @@ async function loadOwnDetails() {
             .single();
         ownDetails = data || null;
     } catch (err) {
-        ownDetails = null; // sin detalles aún: el editor partirá de cero
+        ownDetails = null;
     }
 }
 
-// ============================================================================
-// FUNCIÓN: saveModelProfile()
-// Guarda tarifa, especialidad y bio en role_details propio (RLS: solo yo)
-// ============================================================================
 async function saveModelProfile() {
     const user = window.appState.currentUser;
-    const rate = Number(document.getElementById('editRate').value || 0);
     const specialty = document.getElementById('editSpecialty').value.trim();
     const bio = document.getElementById('editBio').value.trim();
-
-    if (!rate || rate < 1) {
-        window.showToast('La tarifa debe ser al menos 1 token por minuto', 'error');
-        return;
-    }
 
     try {
         const { error } = await window.supabase
             .from('role_details')
-            .update({ rate_per_minute: rate, specialty, bio })
+            .update({ specialty, bio })
             .eq('user_id', user.id);
         if (error) throw error;
-
-        ownDetails = { ...(ownDetails || {}), rate_per_minute: rate, specialty, bio };
+        ownDetails = { ...(ownDetails || {}), specialty, bio };
         window.showToast('Perfil publico actualizado', 'success');
-        await renderModelHome(); // reflejar nuevo precio en la vista previa
     } catch (err) {
         console.error('Error al guardar perfil:', err);
         window.showToast('No se pudo guardar tu perfil', 'error');
     }
 }
 
-// ============================================================================
-// FUNCIÓN: renderGallery()
-// Lista los objetos de la carpeta propia en el bucket y pinta miniaturas
-// ============================================================================
 async function renderGallery() {
     const user = window.appState.currentUser;
     const grid = document.getElementById('galleryGrid');
-    if (!grid || !user) return;
+    if (!grid || !user || user.profile.role !== 'model') return;
 
     const { data, error } = await window.supabase.storage
         .from('model-gallery')
@@ -455,63 +645,44 @@ async function renderGallery() {
         `;
     }).join('');
 
-    // Delegación de borrado dentro de la galería
     grid.querySelectorAll('.gallery-del').forEach(btn => {
         btn.addEventListener('click', () => deleteGalleryFile(btn.dataset.path));
     });
 }
 
-// ============================================================================
-// FUNCIÓN: uploadGalleryFile()
-// Sube una imagen a la carpeta propia del bucket y refresca la galería
-// ============================================================================
 async function uploadGalleryFile(input) {
     const user = window.appState.currentUser;
     const file = input.files && input.files[0];
     if (!file) return;
-
-    // Nombre seguro: marca de tiempo + nombre saneado sin espacios
     const safeName = file.name.replace(/[^a-zA-Z0-9.\-_]/g, '_');
     const path = `${user.id}/${Date.now()}-${safeName}`;
-
     try {
         const { error } = await window.supabase.storage
             .from('model-gallery')
             .upload(path, file, { contentType: file.type, upsert: false });
         if (error) throw error;
-
-        window.showToast('Foto subida a tu galeria', 'success');
+        window.showToast('Foto subida', 'success');
         await renderGallery();
     } catch (err) {
         console.error('Error al subir foto:', err);
         window.showToast('No se pudo subir la foto', 'error');
     }
-
-    input.value = ''; // permite re-subir el mismo archivo después
+    input.value = '';
 }
 
-// ============================================================================
-// FUNCIÓN: deleteGalleryFile()
-// Borra un objeto de la galería propia (RLS de storage: solo la dueña)
-// ============================================================================
 async function deleteGalleryFile(path) {
     try {
-        const { error } = await window.supabase.storage
-            .from('model-gallery')
-            .remove([path]);
+        const { error } = await window.supabase.storage.from('model-gallery').remove([path]);
         if (error) throw error;
-
         window.showToast('Foto eliminada', 'success');
         await renderGallery();
     } catch (err) {
-        console.error('Error al eliminar foto:', err);
         window.showToast('No se pudo eliminar la foto', 'error');
     }
 }
 
 // ============================================================================
-// FUNCIÓN: openModelProfile()
-// Abre el modal único (regla A12) con perfil, tarifa, estrellas y galería
+// openModelProfile: modal único con perfil público (cliente ve esto)
 // ============================================================================
 async function openModelProfile(modelId) {
     const body = document.getElementById('modelModalBody');
@@ -521,7 +692,6 @@ async function openModelProfile(modelId) {
     body.innerHTML = '<p class="hint">Cargando perfil...</p>';
     overlay.classList.add('active');
 
-    // Perfil robusto vía RPC; fallback directo si la RPC faltara (A11)
     let payload = null;
     try {
         const { data, error } = await window.supabase.rpc('get_model_profile', { p_model_id: modelId });
@@ -529,10 +699,7 @@ async function openModelProfile(modelId) {
         payload = data;
     } catch (err) {
         const { data } = await window.supabase
-            .from('profiles')
-            .select('*')
-            .eq('id', modelId)
-            .single();
+            .from('profiles').select('*').eq('id', modelId).single();
         payload = { profile: data, details: null };
     }
 
@@ -543,15 +710,14 @@ async function openModelProfile(modelId) {
     }
 
     const d = payload.details || {};
-    const clientRate = Number(d.rate_per_minute || 0) * 2;
+    const level = d.level_id ? await fetchLevel(d.level_id) : null;
+    const clientRate = level ? Number(level.rate_per_minute) : 0;
 
-    // Galería pública de la modelo (bucket público: cualquier sesión lee)
     let galleryHtml = '<p class="hint">Sin fotos publicas todavia.</p>';
     try {
         const { data: items } = await window.supabase.storage
             .from('model-gallery')
             .list(modelId, { limit: 50, sortBy: { column: 'created_at', order: 'desc' } });
-
         if (items && items.length > 0) {
             const bucket = window.supabase.storage.from('model-gallery');
             galleryHtml = '<div class="gallery-grid">' + items.map(item => {
@@ -568,26 +734,27 @@ async function openModelProfile(modelId) {
             <div class="model-avatar modal-avatar">${(p.full_name || 'M').charAt(0).toUpperCase()}</div>
             <div>
                 <h3 class="modal-title">${p.full_name}</h3>
-                <div class="model-meta">Nivel ${d.worker_level || 1} ${starsHtml(p.rating)}</div>
+                <div class="model-meta">${level ? `<span class="level-badge">${level.name}</span> ` : ''}${starsHtml(p.rating)}</div>
             </div>
         </div>
-        <div class="info-row"><span class="info-label">Tarifa cliente</span><span class="info-value">${clientRate} tokens/min</span></div>
-        <div class="info-row"><span class="info-label">Gana la modelo</span><span class="info-value">${Number(d.rate_per_minute || 0)} tokens/min</span></div>
+        <div class="info-row"><span class="info-label">Tarifa</span><span class="info-value">${clientRate} tokens/min</span></div>
         <div class="info-row"><span class="info-label">Especialidad</span><span class="info-value">${d.specialty || 'General'}</span></div>
         <div class="info-row"><span class="info-label">Estado</span><span class="info-value">${p.in_call ? 'En llamada' : 'En linea'}</span></div>
         ${d.bio ? `<p class="modal-bio">${d.bio}</p>` : ''}
         <h4 class="gallery-title">Galeria</h4>
         ${galleryHtml}
+        ${!p.in_call ? '<button class="btn" style="margin-top:16px;width:100%;" id="callBtn">Iniciar llamada</button>' : ''}
     `;
+
+    const callBtn = document.getElementById('callBtn');
+    if (callBtn) callBtn.addEventListener('click', () => {
+        // Lógica de llamada viene en Fase 3 (V3)
+        window.showToast('Llamadas disponibles en la próxima entrega', 'info');
+    });
 }
 
-// Expuesta global para tarjetas y futuros módulos
 window.openModelProfile = openModelProfile;
 
-// ============================================================================
-// FUNCIÓN: closeModelModal()
-// Cierra el modal de perfil (botón X o clic en el fondo)
-// ============================================================================
 function closeModelModal() {
     const overlay = document.getElementById('modelModal');
     if (overlay) overlay.classList.remove('active');
