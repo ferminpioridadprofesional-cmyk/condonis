@@ -9,7 +9,6 @@ import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js
 
 window.supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-// STUN públicos gratuitos únicamente (Sección 8 S1, sin TURN de pago)
 window.CND_ICE_SERVERS = [
     { urls: ['stun:stun.l.google.com:19302', 'stun:stun1.l.google.com:19302'] },
     { urls: 'stun:stun.cloudflare.com:3478' },
@@ -29,6 +28,6 @@ window.CND_CONFIG = {
     TICK_INTERVAL: 10000
 };
 
-window.CND_BUILD = 'FASE-3-V3.0-2026-09-24';
+window.CND_BUILD = 'FASE-4-V4.0-2026-09-24';
 
 export { SUPABASE_URL, SUPABASE_ANON_KEY };
