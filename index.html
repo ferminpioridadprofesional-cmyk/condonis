@@ -1,54 +1,389 @@
-<!-- Modal de Términos y Condiciones (con cláusulas KYC legales) -->
-<div id="termsModal" class="modal">
-    <div class="modal-content">
-        <h2>Términos y Condiciones</h2>
-        <p><strong>Última actualización:</strong> 24 de septiembre de 2026</p>
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CONDONIS - Inicio</title>
+    <link rel="icon" type="image/svg+xml" href="assets/logo.svg">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=Space+Grotesk:wght@600;700&display=swap" rel="stylesheet">
+    <style>
+        /* Estilos globales - Diseño oscuro profesional */
+        * { margin: 0; padding: 0; box-sizing: border-box; }
 
-        <p><strong>1. Aceptación de los Términos</strong></p>
-        <p>Al acceder y utilizar CONDONIS, aceptas estar sujeto a estos Términos y Condiciones. Si no estás de acuerdo con alguna parte de estos términos, no podrás acceder al servicio.</p>
+        body {
+            font-family: 'Inter', sans-serif;
+            background: #0B0F17;
+            color: #E2E8F0;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
 
-        <p><strong>2. Descripción del Servicio</strong></p>
-        <p>CONDONIS es una plataforma que conecta clientes con modelos para videollamadas 1:1 con cobro por minuto. El servicio está destinado exclusivamente a personas mayores de 18 años.</p>
+        h1, h2, h3 { font-family: 'Space Grotesk', sans-serif; }
 
-        <p><strong>3. Cuentas de Usuario</strong></p>
-        <p>Debes registrarte para utilizar el servicio. Eres responsable de mantener la confidencialidad de tu cuenta y contraseña. Aceptas la responsabilidad de todas las actividades que ocurran bajo tu cuenta.</p>
+        .auth-container {
+            width: 100%;
+            max-width: 420px;
+            background: rgba(15, 23, 42, 0.6);
+            border: 1px solid rgba(100, 116, 139, 0.3);
+            border-radius: 12px;
+            padding: 32px;
+            backdrop-filter: blur(10px);
+        }
 
-        <p><strong>4. Verificación de Identidad (KYC) — OBLIGATORIA PARA MODELOS</strong></p>
-        <p>Las modelos deben completar un proceso de verificación de identidad (KYC) antes de poder recibir llamadas o aparecer en los listados públicos. Los documentos aceptados son:</p>
-        <ul style="padding-left:20px;color:#CBD5E1;margin-bottom:12px;">
-            <li>Cédula de identidad o documento nacional de identidad (ambos lados)</li>
-            <li>Pasaporte vigente</li>
-            <li>Licencia de conducción vigente</li>
-            <li>Carnet de protección temporal vigente</li>
-            <li>Selfie sosteniendo uno de los documentos anteriores</li>
-        </ul>
-        <p>La modelo declara y garantiza que los documentos enviados son auténticos, le pertenecen y se encuentran vigentes. El envío de documentos falsos, alterados, suplantados o ajenos constituye una infracción grave que dará lugar a la suspensión permanente de la cuenta y, cuando corresponda, a la denuncia ante las autoridades competentes.</p>
-        <p>La aprobación KYC la realiza un administrador humano de CONDONIS. Una vez aprobada, se asigna un nivel tarifario que determina los ingresos de la modelo. CONDONIS se reserva el derecho de rechazar cualquier solicitud que no cumpla con los requisitos o presente indicios de fraude.</p>
+        .logo { text-align: center; margin-bottom: 32px; }
 
-        <p><strong>5. Mayoría de Edad y Contenido</strong></p>
-        <p>Todas las modelos deben ser mayores de 18 años al momento del registro y durante toda la vigencia del servicio. CONDONIS verifica la edad mediante el proceso KYC. Queda estrictamente prohibida la participación de menores de edad, así como cualquier contenido que explote, abuse o perjudique a personas vulnerables. La plataforma coopera con las autoridades en cualquier investigación relacionada.</p>
+        .logo h1 {
+            font-size: 32px;
+            background: linear-gradient(135deg, #00D4FF 0%, #FF006E 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
 
-        <p><strong>6. Sistema de Tokens y Tarifas</strong></p>
-        <p>El servicio utiliza un sistema de tokens virtuales. Los tokens comprados no son reembolsables y no tienen valor monetario fuera de la plataforma. Las tarifas por minuto son fijadas por CONDONIS mediante un sistema de niveles y no pueden ser modificadas unilateralmente por las modelos. La modelo recibe el 50% de la tarifa del nivel asignado; CONDONIS retiene el 50% restante como comisión por el uso de la plataforma.</p>
+        .auth-tabs {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 24px;
+            border-bottom: 1px solid rgba(100, 116, 139, 0.3);
+        }
 
-        <p><strong>7. Comisiones y Pagos</strong></p>
-        <p>Las ganancias acumuladas pueden ser retiradas a través del sistema de agencias o directamente según lo determine la administración de la plataforma. Los pagos se procesan en los plazos y condiciones publicados en el panel correspondiente.</p>
+        .auth-tab {
+            flex: 1;
+            padding: 12px;
+            background: transparent;
+            border: none;
+            color: #94A3B8;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            border-bottom: 2px solid transparent;
+            transition: all 0.3s;
+        }
 
-        <p><strong>8. Conducta del Usuario</strong></p>
-        <p>Te comprometes a utilizar el servicio de manera legal y ética. No debes participar en actividades que dañen, deshabiliten o deterioren el servicio. Queda prohibido el contenido ilegal, violento, que involucre menores, que infrinja derechos de terceros o que viole la legislación aplicable en tu jurisdicción.</p>
+        .auth-tab.active { color: #00D4FF; border-bottom-color: #00D4FF; }
 
-        <p><strong>9. Privacidad y Protección de Datos KYC</strong></p>
-        <p>Tu privacidad es importante para nosotros. Los documentos KYC se almacenan en un bucket privado con acceso restringido exclusivamente al personal autorizado de administración. No se comparten con terceros salvo obligación legal. Puedes ejercer tus derechos de acceso, rectificación y supresión contactando al soporte. Consulta nuestra Política de Privacidad completa para más detalles.</p>
+        .auth-form { display: none; }
+        .auth-form.active { display: block; }
 
-        <p><strong>10. Suspensión y Terminación</strong></p>
-        <p>CONDONIS puede suspender o terminar cuentas que violen estos términos, presenten documentos falsos, participen en actividades ilegales o acumulen denuncias fundadas. El usuario puede cerrar su cuenta en cualquier momento desde su perfil.</p>
+        .form-group { margin-bottom: 16px; }
 
-        <p><strong>11. Limitación de Responsabilidad</strong></p>
-        <p>CONDONIS no será responsable por daños indirectos, incidentales, especiales o consecuentes que resulten del uso del servicio.</p>
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            color: #CBD5E1;
+            font-size: 14px;
+            font-weight: 600;
+        }
 
-        <p><strong>12. Modificaciones</strong></p>
-        <p>Nos reservamos el derecho de modificar estos términos en cualquier momento. Las modificaciones entrarán en vigor inmediatamente después de su publicación.</p>
+        .form-group input,
+        .form-group select {
+            width: 100%;
+            padding: 12px;
+            background: rgba(30, 41, 59, 0.5);
+            border: 1px solid rgba(100, 116, 139, 0.3);
+            border-radius: 8px;
+            color: #E2E8F0;
+            font-size: 16px;
+            transition: all 0.3s;
+        }
 
-        <button class="modal-close" onclick="closeModal('termsModal')">Cerrar</button>
+        .form-group input:focus,
+        .form-group select:focus {
+            outline: none;
+            border-color: #00D4FF;
+            background: rgba(30, 41, 59, 0.8);
+        }
+
+        .checkbox-group {
+            display: flex;
+            align-items: flex-start;
+            gap: 8px;
+            margin: 16px 0;
+        }
+
+        .checkbox-group input[type="checkbox"] {
+            margin-top: 4px;
+            width: 18px;
+            height: 18px;
+            cursor: pointer;
+        }
+
+        .checkbox-group label { font-size: 14px; color: #94A3B8; cursor: pointer; }
+        .checkbox-group a { color: #00D4FF; text-decoration: none; }
+        .checkbox-group a:hover { text-decoration: underline; }
+
+        .link-row { margin-top: 14px; text-align: center; font-size: 14px; }
+        .link-row a { color: #00D4FF; text-decoration: none; }
+        .link-row a:hover { text-decoration: underline; }
+
+        .btn {
+            width: 100%;
+            padding: 14px;
+            background: linear-gradient(135deg, #00D4FF 0%, #0099CC 100%);
+            border: none;
+            border-radius: 8px;
+            color: white;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 16px rgba(0, 212, 255, 0.3);
+        }
+
+        .btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+
+        .alert {
+            padding: 12px;
+            border-radius: 8px;
+            margin-bottom: 16px;
+            font-size: 14px;
+            display: none;
+        }
+
+        .alert.error {
+            background: rgba(239, 68, 68, 0.2);
+            border: 1px solid rgba(239, 68, 68, 0.5);
+            color: #FCA5A5;
+        }
+
+        .alert.success {
+            background: rgba(34, 197, 94, 0.2);
+            border: 1px solid rgba(34, 197, 94, 0.5);
+            color: #86EFAC;
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .modal.active { display: flex; }
+
+        .modal-content {
+            background: #0F172A;
+            border: 1px solid rgba(100, 116, 139, 0.3);
+            border-radius: 12px;
+            padding: 32px;
+            max-width: 600px;
+            max-height: 80vh;
+            overflow-y: auto;
+            width: 100%;
+        }
+
+        .modal-content h2 { margin-bottom: 16px; color: #00D4FF; }
+        .modal-content p { margin-bottom: 12px; line-height: 1.6; color: #CBD5E1; }
+        .modal-content ul { padding-left: 20px; color: #CBD5E1; margin-bottom: 12px; }
+        .modal-content li { margin-bottom: 6px; }
+
+        .modal-close {
+            margin-top: 24px;
+            padding: 12px 24px;
+            background: #00D4FF;
+            border: none;
+            border-radius: 8px;
+            color: white;
+            font-weight: 600;
+            cursor: pointer;
+        }
+
+        .spinner {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
+            border-top-color: white;
+            animation: spin 0.8s linear infinite;
+        }
+
+        @keyframes spin { to { transform: rotate(360deg); } }
+    </style>
+</head>
+<body>
+    <!-- Contenedor principal de autenticación -->
+    <div class="auth-container">
+        <div class="logo">
+            <h1>CONDONIS</h1>
+            <p style="color: #94A3B8; margin-top: 8px;">Plataforma de videollamadas 1:1</p>
+        </div>
+
+        <div id="authAlert" class="alert"></div>
+
+        <div class="auth-tabs">
+            <button class="auth-tab active" data-tab="login">Iniciar Sesión</button>
+            <button class="auth-tab" data-tab="register">Registrarse</button>
+        </div>
+
+        <!-- Formulario de Login -->
+        <form id="loginForm" class="auth-form active">
+            <div class="form-group">
+                <label for="loginEmail">Correo Electrónico</label>
+                <input type="email" id="loginEmail" required>
+            </div>
+            <div class="form-group">
+                <label for="loginPassword">Contraseña</label>
+                <input type="password" id="loginPassword" required>
+            </div>
+            <button type="submit" class="btn" id="loginBtn">Iniciar Sesión</button>
+
+            <div class="link-row">
+                <a href="#" id="resendConfirmationLink">¿No confirmaste tu correo? Reenviar enlace</a>
+            </div>
+        </form>
+
+        <!-- Formulario de Registro -->
+        <form id="registerForm" class="auth-form">
+            <div class="form-group">
+                <label for="registerName">Nombre Completo</label>
+                <input type="text" id="registerName" required>
+            </div>
+            <div class="form-group">
+                <label for="registerEmail">Correo Electrónico</label>
+                <input type="email" id="registerEmail" required>
+            </div>
+            <div class="form-group">
+                <label for="registerPassword">Contraseña</label>
+                <input type="password" id="registerPassword" required minlength="6">
+            </div>
+            <div class="form-group">
+                <label for="registerRole">Tipo de Cuenta</label>
+                <select id="registerRole">
+                    <option value="client">Cliente</option>
+                    <option value="model">Modelo</option>
+                </select>
+            </div>
+
+            <div class="checkbox-group">
+                <input type="checkbox" id="acceptTerms" required>
+                <label for="acceptTerms">
+                    Acepto los <a href="#" id="showTerms">Términos y Condiciones</a> y la
+                    <a href="#" id="showPrivacy">Política de Privacidad</a>
+                </label>
+            </div>
+
+            <div class="checkbox-group" id="ageCheck" style="display: none;">
+                <input type="checkbox" id="isAdult">
+                <label for="isAdult">
+                    Confirmo que soy mayor de 18 años
+                </label>
+            </div>
+
+            <button type="submit" class="btn" id="registerBtn">Crear Cuenta</button>
+        </form>
     </div>
-</div>
+
+    <!-- Modal de Términos y Condiciones (con cláusulas KYC legales) -->
+    <div id="termsModal" class="modal">
+        <div class="modal-content">
+            <h2>Términos y Condiciones</h2>
+            <p><strong>Última actualización:</strong> 24 de septiembre de 2026</p>
+
+            <p><strong>1. Aceptación de los Términos</strong></p>
+            <p>Al acceder y utilizar CONDONIS, aceptas estar sujeto a estos Términos y Condiciones. Si no estás de acuerdo con alguna parte de estos términos, no podrás acceder al servicio.</p>
+
+            <p><strong>2. Descripción del Servicio</strong></p>
+            <p>CONDONIS es una plataforma que conecta clientes con modelos para videollamadas 1:1 con cobro por minuto. El servicio está destinado exclusivamente a personas mayores de 18 años.</p>
+
+            <p><strong>3. Cuentas de Usuario</strong></p>
+            <p>Debes registrarte para utilizar el servicio. Eres responsable de mantener la confidencialidad de tu cuenta y contraseña. Aceptas la responsabilidad de todas las actividades que ocurran bajo tu cuenta.</p>
+
+            <p><strong>4. Verificación de Identidad (KYC) — OBLIGATORIA PARA MODELOS</strong></p>
+            <p>Las modelos deben completar un proceso de verificación de identidad (KYC) antes de poder recibir llamadas o aparecer en los listados públicos. Los documentos aceptados son:</p>
+            <ul>
+                <li>Cédula de identidad o documento nacional de identidad (ambos lados)</li>
+                <li>Pasaporte vigente</li>
+                <li>Licencia de conducción vigente</li>
+                <li>Carnet de protección temporal vigente</li>
+                <li>Selfie sosteniendo uno de los documentos anteriores</li>
+            </ul>
+            <p>La modelo declara y garantiza que los documentos enviados son auténticos, le pertenecen y se encuentran vigentes. El envío de documentos falsos, alterados, suplantados o ajenos constituye una infracción grave que dará lugar a la suspensión permanente de la cuenta y, cuando corresponda, a la denuncia ante las autoridades competentes.</p>
+            <p>La aprobación KYC la realiza un administrador humano de CONDONIS. Una vez aprobada, se asigna un nivel tarifario que determina los ingresos de la modelo. CONDONIS se reserva el derecho de rechazar cualquier solicitud que no cumpla con los requisitos o presente indicios de fraude.</p>
+
+            <p><strong>5. Mayoría de Edad y Contenido</strong></p>
+            <p>Todas las modelos deben ser mayores de 18 años al momento del registro y durante toda la vigencia del servicio. CONDONIS verifica la edad mediante el proceso KYC. Queda estrictamente prohibida la participación de menores de edad, así como cualquier contenido que explote, abuse o perjudique a personas vulnerables. La plataforma coopera con las autoridades en cualquier investigación relacionada.</p>
+
+            <p><strong>6. Sistema de Tokens y Tarifas</strong></p>
+            <p>El servicio utiliza un sistema de tokens virtuales. Los tokens comprados no son reembolsables y no tienen valor monetario fuera de la plataforma. Las tarifas por minuto son fijadas por CONDONIS mediante un sistema de niveles y no pueden ser modificadas unilateralmente por las modelos. La modelo recibe el 50% de la tarifa del nivel asignado; CONDONIS retiene el 50% restante como comisión por el uso de la plataforma.</p>
+
+            <p><strong>7. Comisiones y Pagos</strong></p>
+            <p>Las ganancias acumuladas pueden ser retiradas a través del sistema de agencias o directamente según lo determine la administración de la plataforma. Los pagos se procesan en los plazos y condiciones publicados en el panel correspondiente.</p>
+
+            <p><strong>8. Conducta del Usuario</strong></p>
+            <p>Te comprometes a utilizar el servicio de manera legal y ética. No debes participar en actividades que dañen, deshabiliten o deterioren el servicio. Queda prohibido el contenido ilegal, violento, que involucre menores, que infrinja derechos de terceros o que viole la legislación aplicable en tu jurisdicción.</p>
+
+            <p><strong>9. Privacidad y Protección de Datos KYC</strong></p>
+            <p>Tu privacidad es importante para nosotros. Los documentos KYC se almacenan en un bucket privado con acceso restringido exclusivamente al personal autorizado de administración. No se comparten con terceros salvo obligación legal. Puedes ejercer tus derechos de acceso, rectificación y supresión contactando al soporte. Consulta nuestra Política de Privacidad completa para más detalles.</p>
+
+            <p><strong>10. Suspensión y Terminación</strong></p>
+            <p>CONDONIS puede suspender o terminar cuentas que violen estos términos, presenten documentos falsos, participen en actividades ilegales o acumulen denuncias fundadas. El usuario puede cerrar su cuenta en cualquier momento desde su perfil.</p>
+
+            <p><strong>11. Limitación de Responsabilidad</strong></p>
+            <p>CONDONIS no será responsable por daños indirectos, incidentales, especiales o consecuentes que resulten del uso del servicio.</p>
+
+            <p><strong>12. Modificaciones</strong></p>
+            <p>Nos reservamos el derecho de modificar estos términos en cualquier momento. Las modificaciones entrarán en vigor inmediatamente después de su publicación.</p>
+
+            <button class="modal-close" onclick="closeModal('termsModal')">Cerrar</button>
+        </div>
+    </div>
+
+    <!-- Modal de Política de Privacidad -->
+    <div id="privacyModal" class="modal">
+        <div class="modal-content">
+            <h2>Política de Privacidad</h2>
+            <p><strong>Última actualización:</strong> 24 de septiembre de 2026</p>
+
+            <p><strong>1. Información que Recopilamos</strong></p>
+            <p>Recopilamos información que nos proporcionas directamente, como tu nombre, correo electrónico y datos de verificación de identidad (para modelos).</p>
+
+            <p><strong>2. Uso de la Información</strong></p>
+            <p>Utilizamos tu información para proporcionar el servicio, procesar transacciones, verificar identidades y mejorar la plataforma.</p>
+
+            <p><strong>3. Protección de Datos</strong></p>
+            <p>Implementamos medidas de seguridad técnicas y organizativas para proteger tu información personal contra acceso no autorizado, alteración o divulgación.</p>
+
+            <p><strong>4. Compartir Información</strong></p>
+            <p>No vendemos tu información personal. Podemos compartir información con proveedores de servicios que nos ayudan a operar la plataforma, bajo estrictos acuerdos de confidencialidad.</p>
+
+            <p><strong>5. Retención de Datos</strong></p>
+            <p>Conservamos tu información mientras tu cuenta esté activa o según sea necesario para proporcionarte el servicio.</p>
+
+            <p><strong>6. Tus Derechos</strong></p>
+            <p>Tienes derecho a acceder, corregir o eliminar tu información personal. Puedes ejercer estos derechos contactando a nuestro equipo de soporte.</p>
+
+            <p><strong>7. Cookies y Tecnologías Similares</strong></p>
+            <p>Utilizamos cookies y tecnologías similares para mejorar tu experiencia y recopilar datos de uso.</p>
+
+            <p><strong>8. Seguridad de las Comunicaciones</strong></p>
+            <p>Las videollamadas utilizan cifrado WebRTC punto a punto. No almacenamos contenido de videollamadas.</p>
+
+            <p><strong>9. Menores de Edad</strong></p>
+            <p>El servicio no está dirigido a personas menores de 18 años. No recopilamos conscientemente información de menores.</p>
+
+            <p><strong>10. Cambios a esta Política</strong></p>
+            <p>Podemos actualizar esta política periódicamente. Te notificaremos de cambios significativos publicando la nueva política en esta página.</p>
+
+            <button class="modal-close" onclick="closeModal('privacyModal')">Cerrar</button>
+        </div>
+    </div>
+
+    <!-- Scripts: cada archivo UNA sola vez (regla A1) -->
+    <script type="module" src="js/config.js"></script>
+    <script type="module" src="js/auth.js"></script>
+</body>
+</html>
