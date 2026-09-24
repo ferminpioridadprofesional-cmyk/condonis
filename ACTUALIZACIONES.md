@@ -1875,3 +1875,37 @@ Error imputable a la transcripción de la IA, no al proyecto del dueño.
 5. Enviar para revision → perfil queda pending sin errores 400/23502.
 6. Admin: revisar → imágenes visibles; aprobar con nivel → modelo aprobada.
 7. Cerrar sesión → index.html sin errores rojos en consola.
+8. ---
+
+## V2A.2 - Recreación de la cuenta admin por vía oficial
+**Fecha:** 24 de septiembre de 2026  
+**Versión:** FASE-2A-V2A.2-2026-09-24
+
+### Problema:
+- Login del admin devolvía 500 "Database error querying schema"
+  (AuthRetryableFetchError) en POST /auth/v1/token.
+- Causa: la cuenta admin fue insertada manualmente en auth.users mediante
+  SQL; la fila no contenía el bookkeeping interno completo que el motor de
+  Auth (GoTrue) mantiene al crear usuarios por sus vías oficiales, por lo
+  que la consulta interna de login fallaba solo para esa fila.
+
+### Solución:
+1. SQL de limpieza: DELETE de auth.identities y auth.users para
+   admin@condonis.com (profiles cae en cascada).
+2. Creación de la cuenta desde Dashboard → Authentication → Users →
+   Add user, con Auto confirm activado (vía oficial y soportada).
+3. SQL de un solo UPDATE para subir el profile a role = 'admin'.
+
+### Archivos tocados:
+- Ningún archivo de código. Cambio operativo de base de datos y Dashboard.
+
+### Lección registrada (anti-patrón nuevo):
+- NUNCA crear usuarios de Auth con INSERT manual en auth.users: usar siempre
+  el flujo signUp del cliente, el Dashboard o la API service_role.
+
+### Checklist:
+1. SQL de limpieza ejecutado → count = 0.
+2. Usuario creado desde Dashboard con Auto confirm.
+3. UPDATE de rol ejecutado → SELECT muestra role = admin.
+4. Login admin exitoso y botón Admin visible.
+5. Logins de cliente y modelo siguen funcionando sin cambios.
