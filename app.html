@@ -9,100 +9,38 @@
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
 
-        body {
-            font-family: 'Inter', sans-serif;
-            background: #0B0F17;
-            color: #E2E8F0;
-            min-height: 100vh;
-            padding-bottom: 80px;
-        }
-
+        body { font-family: 'Inter', sans-serif; background: #0B0F17; color: #E2E8F0; min-height: 100vh; padding-bottom: 80px; }
         h1, h2, h3, h4 { font-family: 'Space Grotesk', sans-serif; }
 
-        .app-header {
-            position: sticky; top: 0;
-            background: rgba(11, 15, 23, 0.95);
-            backdrop-filter: blur(10px);
-            border-bottom: 1px solid rgba(100, 116, 139, 0.3);
-            padding: 16px 20px;
-            display: flex; align-items: center; justify-content: space-between;
-            z-index: 100;
-        }
-
-        .app-header h1 {
-            font-size: 24px;
-            background: linear-gradient(135deg, #00D4FF 0%, #FF006E 100%);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
-        }
-
+        .app-header { position: sticky; top: 0; background: rgba(11, 15, 23, 0.95); backdrop-filter: blur(10px); border-bottom: 1px solid rgba(100, 116, 139, 0.3); padding: 16px 20px; display: flex; align-items: center; justify-content: space-between; z-index: 100; }
+        .app-header h1 { font-size: 24px; background: linear-gradient(135deg, #00D4FF 0%, #FF006E 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
         .user-info { display: flex; align-items: center; gap: 12px; }
-
-        .user-avatar {
-            width: 40px; height: 40px; border-radius: 50%;
-            background: linear-gradient(135deg, #00D4FF 0%, #FF006E 100%);
-            display: flex; align-items: center; justify-content: center;
-            font-weight: 700; font-size: 18px; color: #0B0F17;
-        }
-
+        .user-avatar { width: 40px; height: 40px; border-radius: 50%; background: linear-gradient(135deg, #00D4FF 0%, #FF006E 100%); display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 18px; color: #0B0F17; }
         .user-balance { font-size: 14px; color: #00D4FF; font-weight: 600; }
 
         .app-content { padding: 20px; max-width: 1200px; margin: 0 auto; }
-
         .section { display: none; }
         .section.active { display: block; }
 
-        .bottom-nav {
-            position: fixed; bottom: 0; left: 0; right: 0;
-            background: rgba(15, 23, 42, 0.95);
-            backdrop-filter: blur(10px);
-            border-top: 1px solid rgba(100, 116, 139, 0.3);
-            display: flex; justify-content: space-around;
-            padding: 12px 0; z-index: 100;
-        }
-
-        .nav-item {
-            display: flex; flex-direction: column; align-items: center; gap: 4px;
-            background: transparent; border: none; color: #94A3B8;
-            cursor: pointer; padding: 8px 16px; transition: all 0.3s;
-        }
-
+        .bottom-nav { position: fixed; bottom: 0; left: 0; right: 0; background: rgba(15, 23, 42, 0.95); backdrop-filter: blur(10px); border-top: 1px solid rgba(100, 116, 139, 0.3); display: flex; justify-content: space-around; padding: 12px 0; z-index: 100; }
+        .nav-item { display: flex; flex-direction: column; align-items: center; gap: 4px; background: transparent; border: none; color: #94A3B8; cursor: pointer; padding: 8px 16px; transition: all 0.3s; }
         .nav-item.active { color: #00D4FF; }
         .nav-item svg { width: 24px; height: 24px; }
         .nav-label { font-size: 12px; font-weight: 600; }
 
-        .card {
-            background: rgba(30, 41, 59, 0.5);
-            border: 1px solid rgba(100, 116, 139, 0.3);
-            border-radius: 12px; padding: 20px; margin-bottom: 16px;
-        }
-
+        .card { background: rgba(30, 41, 59, 0.5); border: 1px solid rgba(100, 116, 139, 0.3); border-radius: 12px; padding: 20px; margin-bottom: 16px; }
         .card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
         .card-title { font-size: 18px; font-weight: 700; color: #E2E8F0; }
 
-        .info-row { display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid rgba(100, 116, 139, 0.2); font-size: 14px; }
+        .info-row { display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid rgba(100, 116, 139, 0.2); font-size: 14px; gap: 12px; }
         .info-row:last-child { border-bottom: none; }
         .info-label { color: #94A3B8; }
-        .info-value { color: #E2E8F0; font-weight: 600; }
+        .info-value { color: #E2E8F0; font-weight: 600; text-align: right; }
 
         .models-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 16px; margin-top: 20px; }
-
-        .model-card {
-            background: rgba(30, 41, 59, 0.5);
-            border: 1px solid rgba(100, 116, 139, 0.3);
-            border-radius: 12px; overflow: hidden; cursor: pointer; transition: all 0.3s;
-        }
-
+        .model-card { background: rgba(30, 41, 59, 0.5); border: 1px solid rgba(100, 116, 139, 0.3); border-radius: 12px; overflow: hidden; cursor: pointer; transition: all 0.3s; }
         .model-card:hover { transform: translateY(-4px); border-color: #00D4FF; box-shadow: 0 8px 16px rgba(0, 212, 255, 0.2); }
-
-        .model-avatar {
-            width: 100%; aspect-ratio: 1;
-            background: linear-gradient(135deg, #1E293B 0%, #334155 100%);
-            display: flex; align-items: center; justify-content: center;
-            font-size: 48px; font-weight: 700; color: #64748B;
-        }
-
+        .model-avatar { width: 100%; aspect-ratio: 1; background: linear-gradient(135deg, #1E293B 0%, #334155 100%); display: flex; align-items: center; justify-content: center; font-size: 48px; font-weight: 700; color: #64748B; }
         .model-info { padding: 16px; }
         .model-name { font-size: 16px; font-weight: 600; margin-bottom: 4px; }
         .model-rate { font-size: 14px; color: #00D4FF; font-weight: 600; }
@@ -133,12 +71,7 @@
 
         .form-row { margin-bottom: 12px; }
         .form-row label { display: block; font-size: 13px; color: #CBD5E1; margin-bottom: 6px; font-weight: 600; }
-        .form-row input, .form-row textarea, .form-row select {
-            width: 100%; padding: 10px;
-            background: rgba(30, 41, 59, 0.5);
-            border: 1px solid rgba(100, 116, 139, 0.3);
-            border-radius: 8px; color: #E2E8F0; font-size: 14px; font-family: inherit;
-        }
+        .form-row input, .form-row textarea, .form-row select { width: 100%; padding: 10px; background: rgba(30, 41, 59, 0.5); border: 1px solid rgba(100, 116, 139, 0.3); border-radius: 8px; color: #E2E8F0; font-size: 14px; font-family: inherit; }
         .form-row input:focus, .form-row textarea:focus, .form-row select:focus { outline: none; border-color: #00D4FF; }
 
         .gallery-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); gap: 10px; margin-top: 12px; }
@@ -158,7 +91,6 @@
         .modal-title { font-size: 22px; color: #F9FAFB; }
         .modal-bio { margin-top: 12px; color: #CBD5E1; font-size: 14px; line-height: 1.6; }
 
-        /* === KYC (Fase 2A) === */
         .kyc-card { border-left: 4px solid #94A3B8; }
         .kyc-card.kyc-ok { border-left-color: #22C55E; }
         .kyc-card.kyc-pending { border-left-color: #F59E0B; }
@@ -191,7 +123,13 @@
         .levels-table input { width: 100%; padding: 8px; background: rgba(30, 41, 59, 0.5); border: 1px solid rgba(100, 116, 139, 0.3); border-radius: 6px; color: #E2E8F0; font-size: 14px; }
         .levels-table input:focus { outline: none; border-color: #00D4FF; }
 
-        /* === VIDEOLLAMADA (Fase 3) === */
+        /* Paquetes de recarga (Fase 4) */
+        .pkg-row { display: flex; gap: 10px; margin-top: 12px; flex-wrap: wrap; }
+        .pkg-row .btn { flex: 1; min-width: 100px; }
+
+        /* Fila de usuario en admin */
+        .user-row .btn { margin-top: 8px; }
+
         .call-overlay { position: fixed; inset: 0; background: #000; display: none; z-index: 950; }
         .call-overlay.active { display: block; }
         .call-overlay video#remoteVideo { width: 100%; height: 100%; object-fit: contain; background: #000; }
@@ -207,13 +145,9 @@
         .ring { width: 64px; height: 64px; border: 4px solid rgba(0, 212, 255, 0.2); border-top-color: #00D4FF; border-radius: 50%; animation: spin 0.9s linear infinite; }
         @keyframes spin { to { transform: rotate(360deg); } }
 
-        /* Modal entrante con pulso (D3: animación CSS, sin emojis) */
         .incoming-card { text-align: center; }
         .incoming-pulse { width: 84px; height: 84px; margin: 0 auto 16px; border-radius: 50%; background: rgba(0, 212, 255, 0.15); border: 2px solid #00D4FF; animation: pulse 1.2s ease-in-out infinite; }
-        @keyframes pulse {
-            0%, 100% { transform: scale(1); opacity: 1; }
-            50% { transform: scale(1.12); opacity: 0.7; }
-        }
+        @keyframes pulse { 0%, 100% { transform: scale(1); opacity: 1; } 50% { transform: scale(1.12); opacity: 0.7; } }
         .incoming-actions { display: flex; gap: 12px; margin-top: 20px; }
         .incoming-actions .btn { flex: 1; }
 
@@ -264,7 +198,7 @@
         </section>
 
         <section id="sectionHistory" class="section">
-            <h2>Historial</h2>
+            <h2>Tokens y Movimientos</h2>
             <div id="historyContent" style="margin-top: 20px;"></div>
         </section>
 
@@ -274,7 +208,6 @@
         </section>
     </main>
 
-    <!-- Modal único reutilizable (perfil / KYC / revisión admin) -->
     <div id="modelModal" class="modal-overlay" role="dialog" aria-modal="true" aria-label="Ventana de detalle">
         <div class="modal-card">
             <button class="modal-x" id="modelModalClose" aria-label="Cerrar">
@@ -284,7 +217,6 @@
         </div>
     </div>
 
-    <!-- Overlay de videollamada activa -->
     <div id="callOverlay" class="call-overlay">
         <video id="remoteVideo" autoplay playsinline></video>
         <video id="localVideo" class="local-video" autoplay playsinline muted></video>
@@ -304,7 +236,6 @@
         </div>
     </div>
 
-    <!-- Modal de llamada entrante (modelo) -->
     <div id="incomingModal" class="modal-overlay" role="dialog" aria-modal="true" aria-label="Llamada entrante">
         <div class="modal-card incoming-card">
             <div class="incoming-pulse"></div>
@@ -325,12 +256,12 @@
             </svg>
             <span class="nav-label">Inicio</span>
         </button>
-        <button class="nav-item" data-section="sectionHistory" aria-label="Ver historial">
+        <button class="nav-item" data-section="sectionHistory" aria-label="Ver tokens y movimientos">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <circle cx="12" cy="12" r="10"></circle>
                 <polyline points="12 6 12 12 16 14"></polyline>
             </svg>
-            <span class="nav-label">Historial</span>
+            <span class="nav-label">Tokens</span>
         </button>
         <button class="nav-item" data-section="sectionProfile" aria-label="Ver mi perfil">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -348,6 +279,7 @@
     <script type="module" src="js/core.js"></script>
     <script type="module" src="js/models.js"></script>
     <script type="module" src="js/calls.js"></script>
+    <script type="module" src="js/tokens.js"></script>
     <script type="module" src="js/admin.js"></script>
 </body>
 </html>
