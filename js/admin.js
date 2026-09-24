@@ -1,5 +1,7 @@
 // ============================================================================
-// CONDONIS - ADMIN: panel de administración (KYC, niveles, modelos)
+// CONDONIS - ADMIN: panel con KYC (URLs firmadas), niveles y modelos
+// V2A.1: los documentos KYC se visualizan con createSignedUrl porque el
+// bucket kyc-docs es privado por cumplimiento legal.
 // ============================================================================
 
 async function initAdmin() {
@@ -11,7 +13,7 @@ async function initAdmin() {
 window.onAppReadyAdmin = initAdmin;
 
 // ============================================================================
-// renderAdminSection: dashboard con pestañas
+// renderAdminSection: contenedor con 3 pestañas
 // ============================================================================
 async function renderAdminSection() {
     const container = document.getElementById('adminContent');
@@ -47,7 +49,7 @@ async function loadAdminTab(tab) {
 }
 
 // ============================================================================
-// KYC: modelos pendientes de aprobación
+// Pestaña KYC: modelos pendientes o rechazadas
 // ============================================================================
 async function renderKycTab(content) {
     content.innerHTML = '<p class="hint">Cargando...</p>';
@@ -63,7 +65,7 @@ async function renderKycTab(content) {
     }
 
     if (pending.length === 0) {
-        content.innerHTML = '<p class="hint">No hay modelos pendientes de revisión.</p>';
+        content.innerHTML = '<p class="hint">No hay modelos pendientes de revision.</p>';
         return;
     }
 
@@ -85,6 +87,9 @@ async function renderKycTab(content) {
     });
 }
 
+// ============================================================================
+// openKycReview: modal con imágenes firmadas + aprobar/rechazar + nivel
+// ============================================================================
 async function openKycReview(modelId) {
     const overlay = document.getElementById('modelModal');
     const body = document.getElementById('modelModalBody');
@@ -103,11 +108,26 @@ async function openKycReview(modelId) {
         return;
     }
 
-    // Info del modelo
+    // Generar URL firmada por documento (bucket privado)
+    const docsWithUrls = await Promise.all((docs).map(async d => {
+        let url = d.file_url;
+        // Si ya fuera una URL http legada, se usa tal cual
+        if (!String(d.file_url).startsWith('http')) {
+            try {
+                const { data } = await window.supabase.storage
+                    .from('kyc-docs')
+                    .createSignedUrl(d.file_url, 3600);
+                if (data && data.signedUrl) url = data.signedUrl;
+            } catch (e) {
+                console.warn('No se pudo firmar URL de', d.file_url);
+            }
+        }
+        return Object.assign({}, d, { view_url: url });
+    }));
+
     const { data: model } = await window.supabase
         .from('profiles').select('full_name, email').eq('id', modelId).single();
 
-    // Select de nivel para asignar al aprobar
     const { data: levels } = await window.supabase
         .from('kyc_levels').select('*').eq('is_active', true).order('sort_order');
     const levelOptions = (levels || []).map(l =>
@@ -115,15 +135,15 @@ async function openKycReview(modelId) {
     ).join('');
 
     body.innerHTML = `
-        <h3 class="modal-title">Revisión KYC</h3>
+        <h3 class="modal-title">Revision KYC</h3>
         <p class="hint">${model ? model.full_name + ' — ' + model.email : ''}</p>
         <div class="kyc-review-list">
-            ${docs.length === 0 ? '<p class="hint">No hay documentos subidos.</p>' :
-                docs.map(d => `
+            ${docsWithUrls.length === 0 ? '<p class="hint">No hay documentos subidos.</p>' :
+                docsWithUrls.map(d => `
                     <div class="kyc-review-item">
                         <div class="kyc-review-label">${d.doc_type}</div>
-                        <a href="${d.file_url}" target="_blank" rel="noopener">
-                            <img src="${d.file_url}" alt="${d.doc_type}" class="kyc-review-img">
+                        <a href="${d.view_url}" target="_blank" rel="noopener">
+                            <img src="${d.view_url}" alt="${d.doc_type}" class="kyc-review-img">
                         </a>
                     </div>
                 `).join('')
@@ -177,8 +197,13 @@ async function openKycReview(modelId) {
     });
 }
 
+// Modal close helper local (existe en models.js; se usa el global)
+function closeModelModal() {
+    if (typeof window.closeModelModal === 'function') window.closeModelModal();
+}
+
 // ============================================================================
-// Niveles: editar nombres y tarifas
+// Pestaña Niveles: editar nombre y tarifa de cada nivel
 // ============================================================================
 async function renderLevelsTab(content) {
     const { data: levels } = await window.supabase
@@ -244,7 +269,7 @@ async function renderLevelsTab(content) {
 }
 
 // ============================================================================
-// Todas las modelos: listar y cambiar nivel
+// Pestaña Modelos: listar todas y cambiar nivel asignado
 // ============================================================================
 async function renderModelsTab(content) {
     const { data: models } = await window.supabase
@@ -252,12 +277,9 @@ async function renderModelsTab(content) {
 
     const { data: levels } = await window.supabase
         .from('kyc_levels').select('*').eq('is_active', true).order('sort_order');
-    const levelOptions = (levels || []).map(l =>
-        `<option value="${l.id}">${l.name}</option>`
-    ).join('');
 
     if (!models || models.length === 0) {
-        content.innerHTML = '<p class="hint">Aún no hay modelos registradas.</p>';
+        content.innerHTML = '<p class="hint">Aun no hay modelos registradas.</p>';
         return;
     }
 
