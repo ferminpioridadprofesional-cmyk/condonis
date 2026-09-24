@@ -1832,3 +1832,46 @@ Error imputable a la transcripción de la IA, no al proyecto del dueño.
 9. Cliente ve tarjeta con el nivel y tarifa del nivel asignado.
 10. Admin en "Todas las modelos" puede cambiar el nivel de cualquier modelo
     y el cliente ve la tarifa actualizada en <2 segundos.
+
+    ---
+
+## V2A.1 - Fix URLs de Storage y restauración de index.html
+**Fecha:** 24 de septiembre de 2026  
+**Versión:** FASE-2A-V2A.1-2026-09-24
+
+### Problemas reportados:
+1. POST /rest/v1/kyc_documents → 400 con código 23502: "null value in column
+   file_url". Causa: en supabase-js v2, getPublicUrl() devuelve
+   { data: { publicUrl } }; el código usaba .publicUrl directo y llegaba
+   undefined, por lo que el INSERT omitía file_url (NOT NULL).
+2. Bucket kyc-docs es privado (correcto por legalidad): las URLs públicas no
+   servirían para visualizar documentos. Se requiere URL firmada.
+3. index.html quedó corrupto en el repo (contenido del modal TyC pegado fuera
+   de la estructura HTML): la página se mostraba como texto plano blanco.
+
+### Soluciones aplicadas:
+- js/models.js: se guarda la RUTA de storage en kyc_documents.file_url; la
+  visualización (modelo y admin) usa createSignedUrl(path, 3600). Galería
+  pública corregida a getPublicUrl(path).data.publicUrl.
+- js/admin.js: la revisión KYC genera URLs firmadas por documento antes de
+  pintar las imágenes; tolera URLs http legadas.
+- index.html: re-entregado completo con TyC legales dentro del modal oscuro.
+- js/config.js: build tag FASE-2A-V2A.1-2026-09-24.
+
+### Archivos tocados:
+1. js/models.js (completo)
+2. js/admin.js (completo)
+3. index.html (completo)
+4. js/config.js (completo)
+
+### Sin cambios: SQL, app.html, js/core.js, js/auth.js, confirm.html.
+
+### Checklist de verificación V2A.1:
+1. Reemplazar los 4 archivos; commit y push; recarga dura.
+2. window.CND_BUILD = FASE-2A-V2A.1-2026-09-24.
+3. index.html vuelve al diseño oscuro; modales TyC/Privacidad abren bien.
+4. Modelo: subir los 6 documentos → toast de éxito y filas con estado
+   "En revision"; botón Ver abre la imagen firmada en pestaña nueva.
+5. Enviar para revision → perfil queda pending sin errores 400/23502.
+6. Admin: revisar → imágenes visibles; aprobar con nivel → modelo aprobada.
+7. Cerrar sesión → index.html sin errores rojos en consola.
