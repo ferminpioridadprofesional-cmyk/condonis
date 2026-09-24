@@ -1958,3 +1958,69 @@ Error imputable a la transcripción de la IA, no al proyecto del dueño.
 9. Sin conexión P2P (probar apagando WiFi de uno): mensaje claro de NAT a
    los ~10s y llamada cerrada limpia.
 10. Cero errores rojos en consola durante toda la llamada.
+
+11. ---
+
+## FASE 4 - Gestión total de usuarios + economía básica (V4.0)
+**Fecha:** 24 de septiembre de 2026  
+**Versión:** FASE-4-V4.0-2026-09-24
+
+### Problemas reportados y resueltos:
+1. Error WebSocket "Page entered Back-Forward Cache": es comportamiento del
+   navegador al congelar la pestaña; se añadió reconexión del canal Realtime
+   en el evento pageshow para minimizarlo. No era un fallo de la app.
+2. Clientes no podían llamar por saldo insuficiente: se añadió recarga de
+   tokens con pago SIMULADO (tokens.js) y ajuste manual de tokens por admin.
+
+### Nuevas capacidades de administración:
+- Pestaña "Usuarios" con barra de búsqueda por nombre, ID o correo.
+- Ficha completa de cualquier usuario (cliente, modelo, agencia): datos de
+  registro, saldos, KYC, ban, documentos KYC con URL firmada, nivel.
+- Cambiar contraseña de cualquier usuario (cierra sus sesiones).
+- Banear con razón obligatoria / desbanear; el usuario baneado es expulsado
+  y bloqueado al entrar con mensaje de razón.
+- Eliminar cuenta por completo (storage, identities, sesiones, auth.users);
+  el correo queda libre para registrarse de nuevo.
+- Ajustar tokens (+/-) a cualquier usuario con traza en token_transactions.
+- Admin con saldo ilimitado: su header muestra "tokens: ilimitados" y su
+  saldo en base de datos se fijó en 1.000.000.000.
+
+### Economía básica:
+- js/tokens.js NUEVO: sección "Tokens y Movimientos" con paquetes de recarga
+  simulada (100/500/1000) vía RPC purchase_tokens y listado de movimientos.
+
+### SQL Fase 4:
+- Columnas ban_reason y banned_at en profiles.
+- RPCs nuevas: admin_list_users(text), admin_get_user(uuid),
+  admin_reset_password(uuid,text), admin_set_ban(uuid,bool,text),
+  admin_delete_user(uuid), admin_adjust_tokens(uuid,numeric),
+  purchase_tokens(int4). Todas SECURITY DEFINER con chequeo is_admin()
+  (excepto purchase_tokens que es del propio usuario).
+- UPDATE de saldo infinito para roles admin.
+- verify_schema() ampliada.
+
+### Archivos tocados:
+1. js/admin.js (completo, reestructurado a 3 pestañas)
+2. js/tokens.js (NUEVO)
+3. js/core.js (completo: ban check, saldo ∞ admin, pageshow, hook historial)
+4. app.html (completo: script tokens.js, estilos pkg-row/user-row, nav
+   "Tokens")
+5. js/config.js (build FASE-4-V4.0-2026-09-24)
+
+### Checklist de verificación Fase 4:
+1. SQL Fase 4 ejecutado → Success; verify_schema() todo true.
+2. Archivos subidos; build FASE-4-V4.0-2026-09-24.
+3. Admin: header muestra "tokens: ilimitados".
+4. Admin → Usuarios: buscar por nombre y por ID funciona.
+5. Admin → Ver información de un cliente: ficha completa visible.
+6. Admin → ajustar +500 tokens a un cliente → cliente ve saldo nuevo y puede
+   llamar a una modelo.
+7. Cliente → Tokens → recargar 100 → saldo sube y aparece en Movimientos.
+8. Admin → cambiar contraseña de un usuario → ese usuario ya no entra con la
+   vieja y sí con la nueva.
+9. Admin → banear con razón → usuario es expulsado y al intentar entrar ve
+   el mensaje de suspensión; desbanear → vuelve a entrar.
+10. Admin → eliminar cuenta → el correo puede registrarse de nuevo desde
+    index.html.
+11. Cero errores rojos en consola (salvo los avisos de bfcache del navegador
+    al cambiar de pestaña, que son inocuos).
