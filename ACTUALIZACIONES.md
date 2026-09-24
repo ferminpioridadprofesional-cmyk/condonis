@@ -1758,3 +1758,77 @@ Error imputable a la transcripción de la IA, no al proyecto del dueño.
 7. MODELO sube una foto → aparece en su galería y en el modal del cliente.
 8. MODELO cierra la pestaña → cliente la ve desaparecer (beacon offline).
 9. Cero errores rojos en consola en ambos roles.
+---
+
+## FASE 2A - KYC completo + 5 niveles admin + cuenta admin (V2A.0)
+**Fecha:** 24 de septiembre de 2026  
+**Versión:** FASE-2A-V2A.0-2026-09-24
+
+### Alcance cumplido:
+1. **KYC legal completo para modelos:**
+   - Subida de 6 tipos de documento: cédula/ID (frente y reverso), pasaporte,
+     licencia de conducción, carnet de protección temporal, selfie con documento.
+   - Estados: none → pending → approved / rejected.
+   - Bucket `kyc-docs` privado con políticas RLS + storage.
+   - Modal de revisión con imágenes visibles para el admin.
+   - TyC ampliados con cláusulas legales específicas de KYC, mayoría de edad,
+     protección de datos y cooperación con autoridades.
+2. **5 niveles admin (Bronce/Plata/Oro/Platino/Diamante):**
+   - Tabla `kyc_levels` con nombre y tarifa editables por el admin.
+   - La modelo NO fija su precio; el admin asigna el nivel.
+   - La modelo gana 50% del precio del nivel (app retiene 50%).
+   - El precio del nivel se refleja en tarjetas y modal del cliente.
+3. **Cuenta admin inicial creada vía SQL:**
+   - Correo: `admin@condonis.com`
+   - Contraseña: `F123456`
+4. **Panel admin (pestañas):**
+   - KYC pendientes: revisar documentos, aprobar (asignando nivel) o rechazar
+     (con motivo).
+   - Niveles: editar nombre y tarifa de cada nivel.
+   - Todas las modelos: listar y cambiar nivel asignado.
+
+### SQL Fase 2A:
+- Tabla `kyc_levels` con 5 niveles iniciales.
+- Columna `level_id` añadida a `role_details` (FK a kyc_levels).
+- `doc_type` ampliado a 6 valores en `kyc_documents` + columna
+  `rejection_reason`.
+- Bucket storage `kyc-docs` (privado) con 4 políticas.
+- RLS y políticas para `kyc_levels` (lectura pública, gestión admin).
+- `get_active_models()` modificado: precio viene del nivel asignado.
+- `start_call_with_status()` modificado: sin parámetro de tarifa, usa nivel.
+- RPCs admin nuevas: `list_kyc_pending`, `get_kyc_documents`, `approve_model`,
+  `reject_model`, `set_model_level`, `update_kyc_level`.
+- Cuenta admin `admin@condonis.com` / `F123456` creada vía INSERT en
+  `auth.users` con contraseña bcrypt y entrada en `auth.identities`.
+- `verify_schema()` ampliada con los nuevos objetos.
+
+### Archivos tocados:
+1. **js/models.js (re-entregado completo):** panel de modelo con bloque KYC
+   (4 estados), bloque de nivel asignado (solo lectura), subida de 6 tipos
+   de documento al bucket privado, validación de obligatorios antes de enviar,
+   editor de bio/especialidad sin tarifa, galería intacta.
+2. **js/admin.js (NUEVO):** módulo admin con 3 pestañas (KYC / niveles /
+   modelos), revisión con imágenes, asignación de nivel al aprobar, rechazo
+   con motivo, edición de tarifas, cambio de nivel a modelos existentes.
+3. **js/core.js (re-entregado completo):** integración con `onAppReadyAdmin`,
+   `loadSectionContent` redirige a `renderAdminSection` si el módulo existe.
+4. **app.html (re-entregado completo):** estilos de KYC (estados, badges,
+   revisión de imágenes), badges de nivel, pestañas admin, tabla de niveles.
+5. **index.html (TyC re-entregados):** cláusulas legales nuevas sobre KYC
+   obligatorio, documentos aceptados, mayoría de edad, contenido prohibido,
+   protección de datos KYC y suspensión por fraude.
+6. **js/config.js (build actualizado):** `FASE-2A-V2A.0-2026-09-24`.
+
+### Checklist de verificación Fase 2A:
+1. SQL Fase 2A ejecutado → Success; verify_schema() todo true.
+2. Cuenta admin funciona: login con `admin@condonis.com` / `F123456`.
+3. Admin ve botón "Admin" en el bottom-nav; entra al panel con 3 pestañas.
+4. En "Niveles y tarifas" edita nombre y tarifa de Bronce → se guarda.
+5. Como MODELO nueva: entra y ve bloque "Verificación KYC obligatoria".
+6. MODELO sube los 6 documentos → estado cambia a "En revisión".
+7. Admin en "KYC pendientes" ve la modelo, revisa imágenes, aprueba
+   asignándole un nivel → modelo pasa a "Aprobada".
+8. MODELO recarga: ya puede activar disponibilidad y aparece en el cliente.
+9. Cliente ve tarjeta con el nivel y tarifa del nivel asignado.
+10. Admin en "Todas las modelos" puede cambiar el nivel de cualquier modelo
+    y el cliente ve la tarifa actualizada en <2 segundos.
