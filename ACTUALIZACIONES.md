@@ -1909,3 +1909,52 @@ Error imputable a la transcripción de la IA, no al proyecto del dueño.
 3. UPDATE de rol ejecutado → SELECT muestra role = admin.
 4. Login admin exitoso y botón Admin visible.
 5. Logins de cliente y modelo siguen funcionando sin cambios.
+
+6. ---
+
+## FASE 3 - Videollamadas + privacidad de ganancias (V3.0)
+**Fecha:** 24 de septiembre de 2026  
+**Versión:** FASE-3-V3.0-2026-09-24
+
+### Cambio solicitado por el dueño:
+- La modelo NO debe ver cuánto paga el cliente ni cuánto retiene la app:
+  solo su ganancia por minuto. Aplicado en el bloque "Mi nivel" y en la
+  vista previa de su tarjeta (muestra su ganancia, no el precio cliente).
+
+### Alcance Fase 3 (Sección 8 completo):
+- js/calls.js NUEVO: WebRTC P2P con SOLO STUN gratuitos; señalización por
+  Realtime broadcast; getUserMedia antes de createPC con 2 reintentos;
+  overlay "Conectando llamada"; ICE restart a los 5s; corte con mensaje claro
+  de NAT restrictiva a los 10s sin conexión; corte a 15s sin medios remotos;
+  códecs H264 preferido y VP8 respaldo; bitrate inicial 250kbps y adaptive a
+  150kbps si pérdida >5% o RTT >500ms; cobro con tick_call cada 10s y
+  contador UI cada 1s (cliente ve costo, modelo ve ganancia); corte automático
+  por saldo insuficiente; rechazo sin cobro (status missed); bloqueo
+  pre-llamada vía RPC; limpieza total de tracks y canales al colgar.
+- Modal de llamada entrante con pulso CSS y botones Aceptar/Rechazar.
+- Overlay de llamada con video remoto, video local espejo, timer y HUD.
+- SQL Fase 3: publicación Realtime de video_calls + REPLICA IDENTITY FULL,
+  RPC reject_call(), RPC get_display_name(), verify_schema() ampliada.
+
+### Archivos tocados:
+1. js/calls.js (NUEVO)
+2. js/models.js (completo: privacidad de ganancias + botón llamar clientes)
+3. app.html (completo: overlay de llamada + modal entrante + estilos)
+4. js/config.js (build tag FASE-3-V3.0-2026-09-24)
+
+### Sin cambios: js/core.js, js/admin.js, js/auth.js, index.html, SQL previo.
+
+### Checklist de verificación Fase 3:
+1. SQL Fase 3 ejecutado → Success; verify_schema() todo true.
+2. Archivos subidos; build FASE-3-V3.0-2026-09-24.
+3. Modelo: bloque "Mi nivel" muestra SOLO "Ganas por minuto"; en ninguna
+   parte ve el precio del cliente ni la comisión.
+4. Cliente abre perfil de modelo online → botón "Iniciar llamada (X tokens/min)".
+5. Modelo recibe modal entrante con pulso en <2s; al Aceptar se ve y oye
+   ambos videos (misma red WiFi para prueba).
+6. Cliente ve timer y costo en vivo; modelo ve timer y ganancia en vivo.
+7. Modelo Rechaza → cliente ve "La modelo rechazo la llamada" sin cobro.
+8. Colgar de cualquier lado libera in_call y cierra overlay en ambos.
+9. Sin conexión P2P (probar apagando WiFi de uno): mensaje claro de NAT a
+   los ~10s y llamada cerrada limpia.
+10. Cero errores rojos en consola durante toda la llamada.
