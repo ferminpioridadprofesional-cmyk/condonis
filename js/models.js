@@ -1,12 +1,11 @@
 // ============================================================================
-// CONDONIS - MODELS: Panel de modelo, KYC con URLs firmadas, listado, galería
-// V2A.1: fix getPublicUrl (v2 devuelve {data:{publicUrl}}) y KYC privado
-// con createSignedUrl para visualización segura.
+// CONDONIS - MODELS: Panel de modelo, KYC, listado, galería y llamada
+// V3.0: la modelo SOLO ve lo que gana por minuto (nunca el precio del
+// cliente ni la comisión de la app). Botón de llamar solo para clientes.
 // ============================================================================
 
 import { SUPABASE_URL, SUPABASE_ANON_KEY } from './config.js';
 
-// Tipos de documento KYC aceptados (reflejados legalmente en los TyC)
 const KYC_DOC_TYPES = [
     { id: 'id_front',        label: 'Cedula / ID (frente)',            required: true },
     { id: 'id_back',         label: 'Cedula / ID (reverso)',           required: true },
@@ -22,9 +21,6 @@ let heartbeatTimer = null;
 let accessToken = '';
 let ownDetails = null;
 
-// ============================================================================
-// initModels: arranque del módulo (lo llama core.js vía onAppReady)
-// ============================================================================
 async function initModels() {
     const user = window.appState.currentUser;
     if (!user || !user.profile) return;
@@ -38,7 +34,6 @@ async function initModels() {
         window.addEventListener('pagehide', beaconOffline);
     }
 
-    // Delegación de clics en tarjetas (una sola vez, regla A12)
     if (!modelsClickBound) {
         const container = document.getElementById('modelsContainer');
         if (container) {
@@ -50,7 +45,6 @@ async function initModels() {
         }
     }
 
-    // Cierre del modal único: botón X y clic en el fondo
     const overlay = document.getElementById('modelModal');
     const closeBtn = document.getElementById('modelModalClose');
     if (closeBtn) closeBtn.addEventListener('click', closeModelModal);
@@ -65,9 +59,6 @@ async function initModels() {
 
 window.onAppReady = initModels;
 
-// ============================================================================
-// loadActiveModels: refresca según rol (panel modelo o listado cliente)
-// ============================================================================
 async function loadActiveModels() {
     const user = window.appState.currentUser;
     if (!user || !user.profile) return;
@@ -83,7 +74,7 @@ async function loadActiveModels() {
     window.appState.models = models || [];
 
     if (models && models.length > 0) {
-        container.innerHTML = models.map(cardHtml).join(''); // reemplazo total
+        container.innerHTML = models.map(cardHtml).join('');
     } else {
         container.innerHTML = '<p class="empty-note">No hay modelos disponibles en este momento. Vuelve en unos minutos.</p>';
     }
@@ -91,9 +82,6 @@ async function loadActiveModels() {
 
 window.loadActiveModels = loadActiveModels;
 
-// ============================================================================
-// fetchActiveModels: RPC con fallback (regla A11)
-// ============================================================================
 async function fetchActiveModels() {
     try {
         const { data, error } = await window.supabase.rpc('get_active_models');
@@ -120,9 +108,6 @@ async function fetchActiveModels() {
     }
 }
 
-// ============================================================================
-// cardHtml: tarjeta de modelo del grid (sin emojis, regla D1)
-// ============================================================================
 function cardHtml(m) {
     const initial = (m.full_name || 'M').charAt(0).toUpperCase();
     const rate = Number(m.client_rate || 0);
@@ -146,9 +131,6 @@ function cardHtml(m) {
     `;
 }
 
-// ============================================================================
-// starsHtml: cinco estrellas SVG según rating redondeado
-// ============================================================================
 function starsHtml(rating) {
     const full = Math.round(Number(rating || 0));
     let out = '<span class="stars" aria-label="Calificacion ' + full + ' de 5">';
@@ -160,7 +142,7 @@ function starsHtml(rating) {
 }
 
 // ============================================================================
-// renderModelHome: home de modelo (KYC + disponibilidad + nivel + galería)
+// renderModelHome: la modelo ve SOLO lo que gana por minuto
 // ============================================================================
 async function renderModelHome() {
     const user = window.appState.currentUser;
@@ -174,10 +156,9 @@ async function renderModelHome() {
     const level = ownDetails && ownDetails.level_id
         ? await fetchLevel(ownDetails.level_id) : null;
 
-    const clientRate = level ? Number(level.rate_per_minute) : 0;
+    // Única cifra económica visible para la modelo: lo que ELLA gana
     const modelRate = level ? Number(level.rate_per_minute) * 0.5 : 0;
 
-    // Bloque KYC según estado actual
     let kycBlock = '';
     if (kycOk) {
         kycBlock = `
@@ -225,7 +206,6 @@ async function renderModelHome() {
         `;
     }
 
-    // Disponibilidad: solo si KYC aprobado
     const availBlock = kycOk ? `
         <div class="card avail-card">
             <div class="card-header">
@@ -240,7 +220,7 @@ async function renderModelHome() {
         </div>
     ` : '';
 
-    // Nivel asignado por admin (solo lectura para la modelo)
+    // BLOQUE DE NIVEL: solo muestra lo que ELLA gana por minuto
     const levelBlock = `
         <div class="card">
             <div class="card-header">
@@ -249,21 +229,16 @@ async function renderModelHome() {
             </div>
             ${level ? `
                 <div class="info-row">
-                    <span class="info-label">El cliente paga</span>
-                    <span class="info-value">${Number(level.rate_per_minute)} tokens/min</span>
-                </div>
-                <div class="info-row">
-                    <span class="info-label">Tu ganas (50%)</span>
+                    <span class="info-label">Ganas por minuto</span>
                     <span class="info-value">${modelRate} tokens/min</span>
                 </div>
-                <p class="hint">El administrador asigna y modifica los niveles y tarifas.</p>
+                <p class="hint">Tarifa de ganancia asignada a tu nivel y administrada por la plataforma.</p>
             ` : `
                 <p class="hint">Aun no tienes un nivel asignado. El administrador debe asignartelo cuando apruebe tu KYC.</p>
             `}
         </div>
     `;
 
-    // Bio y especialidad editables por la modelo
     const bioBlock = `
         <div class="card">
             <div class="card-header"><span class="card-title">Mi perfil publico</span></div>
@@ -279,7 +254,6 @@ async function renderModelHome() {
         </div>
     `;
 
-    // Galería pública de la modelo
     const galleryBlock = `
         <div class="card">
             <div class="card-header"><span class="card-title">Mi galeria</span></div>
@@ -291,15 +265,15 @@ async function renderModelHome() {
 
     zone.innerHTML = kycBlock + availBlock + levelBlock + bioBlock + galleryBlock;
 
-    // Vista previa de cómo te ve el cliente
+    // Vista previa: la modelo ve SU ganancia, no el precio del cliente
     if (kycOk && level) {
         container.innerHTML = cardHtml({
             id: profile.id, full_name: profile.full_name,
             rating: profile.rating, is_online: presenceOnline,
-            in_call: profile.in_call, client_rate: clientRate,
+            in_call: profile.in_call, client_rate: modelRate,
             model_rate: modelRate, level_name: level.name,
             worker_level: ownDetails ? ownDetails.worker_level : 1
-        });
+        }) + '<p class="hint" style="grid-column:1/-1;">Vista previa de tu tarjeta: la cifra mostrada es tu ganancia por minuto.</p>';
     } else {
         container.innerHTML = '<p class="hint" style="margin-top:20px;">Previsualizacion disponible cuando tengas KYC aprobado y nivel asignado.</p>';
     }
@@ -308,21 +282,12 @@ async function renderModelHome() {
     await renderGallery();
 }
 
-// ============================================================================
-// fetchLevel: datos de un nivel por id
-// ============================================================================
 async function fetchLevel(levelId) {
     const { data } = await window.supabase
-        .from('kyc_levels')
-        .select('*')
-        .eq('id', levelId)
-        .single();
+        .from('kyc_levels').select('*').eq('id', levelId).single();
     return data;
 }
 
-// ============================================================================
-// bindModelHomeEvents: listeners del panel de modelo
-// ============================================================================
 function bindModelHomeEvents() {
     const openKyc = document.getElementById('btnOpenKyc');
     const viewDocs = document.getElementById('btnViewKycDocs');
@@ -344,7 +309,7 @@ function bindModelHomeEvents() {
 }
 
 // ============================================================================
-// KYC: modal de subida y estado de documentos
+// KYC
 // ============================================================================
 async function openKycModal() {
     const overlay = document.getElementById('modelModal');
@@ -369,18 +334,13 @@ async function openKycModal() {
     if (submitBtn) submitBtn.addEventListener('click', submitKyc);
 }
 
-// ============================================================================
-// renderKycDocs: filas por tipo de documento con estado y acciones
-// ============================================================================
 async function renderKycDocs() {
     const user = window.appState.currentUser;
     const list = document.getElementById('kycDocsList');
     if (!list) return;
 
     const { data: docs } = await window.supabase
-        .from('kyc_documents')
-        .select('*')
-        .eq('model_id', user.id)
+        .from('kyc_documents').select('*').eq('model_id', user.id)
         .order('created_at', { ascending: false });
 
     list.innerHTML = KYC_DOC_TYPES.map(t => {
@@ -388,14 +348,9 @@ async function renderKycDocs() {
         let statusHtml = '';
         let viewBtn = '';
         if (doc) {
-            if (doc.status === 'approved') {
-                statusHtml = '<span class="kyc-badge kyc-approved">Aprobado</span>';
-            } else if (doc.status === 'rejected') {
-                statusHtml = `<span class="kyc-badge kyc-rejected">Rechazado${doc.rejection_reason ? ': ' + doc.rejection_reason : ''}</span>`;
-            } else {
-                statusHtml = '<span class="kyc-badge kyc-pending">En revision</span>';
-            }
-            // Ver documento propio mediante URL firmada (bucket privado)
+            if (doc.status === 'approved') statusHtml = '<span class="kyc-badge kyc-approved">Aprobado</span>';
+            else if (doc.status === 'rejected') statusHtml = `<span class="kyc-badge kyc-rejected">Rechazado${doc.rejection_reason ? ': ' + doc.rejection_reason : ''}</span>`;
+            else statusHtml = '<span class="kyc-badge kyc-pending">En revision</span>';
             viewBtn = `<button class="btn btn-secondary kyc-view-btn" data-path="${doc.file_url}">Ver</button>`;
         }
         return `
@@ -413,45 +368,33 @@ async function renderKycDocs() {
         `;
     }).join('');
 
-    // Botones de subida
     list.querySelectorAll('.kyc-upload-btn').forEach(btn => {
         btn.addEventListener('click', () => {
-            const type = btn.dataset.type;
-            const input = list.querySelector(`.kyc-file-input[data-type="${type}"]`);
+            const input = list.querySelector(`.kyc-file-input[data-type="${btn.dataset.type}"]`);
             if (input) input.click();
         });
     });
 
-    // Inputs de archivo
     list.querySelectorAll('.kyc-file-input').forEach(input => {
         input.addEventListener('change', () => uploadKycFile(input, input.dataset.type));
     });
 
-    // Botones Ver (URL firmada)
     list.querySelectorAll('.kyc-view-btn').forEach(btn => {
         btn.addEventListener('click', () => viewKycDoc(btn.dataset.path));
     });
 }
 
-// ============================================================================
-// viewKycDoc: abre un documento propio con URL firmada de 1 hora
-// ============================================================================
 async function viewKycDoc(path) {
     try {
         const { data, error } = await window.supabase.storage
-            .from('kyc-docs')
-            .createSignedUrl(path, 3600);
+            .from('kyc-docs').createSignedUrl(path, 3600);
         if (error) throw error;
         window.open(data.signedUrl, '_blank', 'noopener');
     } catch (err) {
-        console.error('Error al abrir documento KYC:', err);
         window.showToast('No se pudo abrir el documento', 'error');
     }
 }
 
-// ============================================================================
-// uploadKycFile: sube al bucket privado y guarda la RUTA en file_url
-// ============================================================================
 async function uploadKycFile(input, docType) {
     const user = window.appState.currentUser;
     const file = input.files && input.files[0];
@@ -461,36 +404,20 @@ async function uploadKycFile(input, docType) {
     const path = `${user.id}/${docType}-${Date.now()}-${safeName}`;
 
     try {
-        // 1) Subir el archivo al bucket privado kyc-docs
         const { error: upErr } = await window.supabase.storage
-            .from('kyc-docs')
-            .upload(path, file, { contentType: file.type, upsert: false });
+            .from('kyc-docs').upload(path, file, { contentType: file.type, upsert: false });
         if (upErr) throw upErr;
 
-        // 2) Reemplazar registro previo del mismo tipo
-        await window.supabase
-            .from('kyc_documents')
-            .delete()
-            .eq('model_id', user.id)
-            .eq('doc_type', docType);
+        await window.supabase.from('kyc_documents').delete()
+            .eq('model_id', user.id).eq('doc_type', docType);
 
-        // 3) Insertar registro con la RUTA (no URL pública: bucket privado)
-        const { error: dbErr } = await window.supabase
-            .from('kyc_documents')
-            .insert({
-                model_id: user.id,
-                doc_type: docType,
-                file_url: path,
-                status: 'pending'
-            });
+        const { error: dbErr } = await window.supabase.from('kyc_documents').insert({
+            model_id: user.id, doc_type: docType, file_url: path, status: 'pending'
+        });
         if (dbErr) throw dbErr;
 
-        // 4) Primera subida: el perfil pasa a pending
         if (window.appState.currentUser.profile.kyc_status === 'none') {
-            await window.supabase
-                .from('profiles')
-                .update({ kyc_status: 'pending' })
-                .eq('id', user.id);
+            await window.supabase.from('profiles').update({ kyc_status: 'pending' }).eq('id', user.id);
             window.appState.currentUser.profile.kyc_status = 'pending';
         }
 
@@ -505,16 +432,10 @@ async function uploadKycFile(input, docType) {
     input.value = '';
 }
 
-// ============================================================================
-// submitKyc: valida obligatorios y deja el perfil en pending
-// ============================================================================
 async function submitKyc() {
     const user = window.appState.currentUser;
-
-    const { data: docs } = await window.supabase
-        .from('kyc_documents')
-        .select('doc_type, status')
-        .eq('model_id', user.id);
+    const { data: docs } = await window.supabase.from('kyc_documents')
+        .select('doc_type, status').eq('model_id', user.id);
 
     const submitted = (docs || []).map(d => d.doc_type);
     const missing = KYC_DOC_TYPES.filter(t => t.required && !submitted.includes(t.id));
@@ -525,10 +446,7 @@ async function submitKyc() {
     }
 
     if (user.profile.kyc_status !== 'pending' && user.profile.kyc_status !== 'approved') {
-        await window.supabase
-            .from('profiles')
-            .update({ kyc_status: 'pending' })
-            .eq('id', user.id);
+        await window.supabase.from('profiles').update({ kyc_status: 'pending' }).eq('id', user.id);
         user.profile.kyc_status = 'pending';
     }
 
@@ -540,7 +458,7 @@ async function submitKyc() {
 window.openKycModal = openKycModal;
 
 // ============================================================================
-// Presencia: toggle inmediato + heartbeat + beacon offline (P1-P3)
+// Presencia
 // ============================================================================
 async function setPresence(on) {
     const user = window.appState.currentUser;
@@ -551,15 +469,12 @@ async function setPresence(on) {
     }
     presenceOnline = on;
     try {
-        await window.supabase
-            .from('profiles')
-            .update({ is_online: on, last_seen: new Date().toISOString() })
-            .eq('id', user.id);
+        await window.supabase.from('profiles')
+            .update({ is_online: on, last_seen: new Date().toISOString() }).eq('id', user.id);
         if (on) startHeartbeat(); else stopHeartbeat();
         window.showToast(on ? 'Estas en linea' : 'Te has desconectado', 'success');
         await renderModelHome();
     } catch (err) {
-        console.error('Error al cambiar disponibilidad:', err);
         window.showToast('No se pudo cambiar tu disponibilidad', 'error');
         await renderModelHome();
     }
@@ -571,23 +486,16 @@ function startHeartbeat() {
 }
 
 function stopHeartbeat() {
-    if (heartbeatTimer) {
-        clearInterval(heartbeatTimer);
-        heartbeatTimer = null;
-    }
+    if (heartbeatTimer) { clearInterval(heartbeatTimer); heartbeatTimer = null; }
 }
 
 async function touchPresence(on) {
     const user = window.appState.currentUser;
     if (!user) return;
     try {
-        await window.supabase
-            .from('profiles')
-            .update({ is_online: on, last_seen: new Date().toISOString() })
-            .eq('id', user.id);
-    } catch (err) {
-        console.error('Heartbeat fallo:', err);
-    }
+        await window.supabase.from('profiles')
+            .update({ is_online: on, last_seen: new Date().toISOString() }).eq('id', user.id);
+    } catch (err) { /* heartbeat silencioso */ }
 }
 
 function beaconOffline() {
@@ -597,8 +505,7 @@ function beaconOffline() {
     const user = window.appState.currentUser;
     if (!user || !accessToken) return;
     fetch(`${SUPABASE_URL}/rest/v1/profiles?id=eq.${user.id}`, {
-        method: 'PATCH',
-        keepalive: true,
+        method: 'PATCH', keepalive: true,
         headers: {
             'Content-Type': 'application/json',
             'apikey': SUPABASE_ANON_KEY,
@@ -609,37 +516,28 @@ function beaconOffline() {
 }
 
 // ============================================================================
-// Perfil público editable (bio/especialidad) y galería pública
+// Perfil público y galería
 // ============================================================================
 async function loadOwnDetails() {
     const user = window.appState.currentUser;
     try {
-        const { data } = await window.supabase
-            .from('role_details')
-            .select('*')
-            .eq('user_id', user.id)
-            .single();
+        const { data } = await window.supabase.from('role_details')
+            .select('*').eq('user_id', user.id).single();
         ownDetails = data || null;
-    } catch (err) {
-        ownDetails = null;
-    }
+    } catch (err) { ownDetails = null; }
 }
 
 async function saveModelProfile() {
     const user = window.appState.currentUser;
     const specialty = document.getElementById('editSpecialty').value.trim();
     const bio = document.getElementById('editBio').value.trim();
-
     try {
-        const { error } = await window.supabase
-            .from('role_details')
-            .update({ specialty, bio })
-            .eq('user_id', user.id);
+        const { error } = await window.supabase.from('role_details')
+            .update({ specialty, bio }).eq('user_id', user.id);
         if (error) throw error;
         ownDetails = { ...(ownDetails || {}), specialty, bio };
         window.showToast('Perfil publico actualizado', 'success');
     } catch (err) {
-        console.error('Error al guardar perfil:', err);
         window.showToast('No se pudo guardar tu perfil', 'error');
     }
 }
@@ -649,8 +547,7 @@ async function renderGallery() {
     const grid = document.getElementById('galleryGrid');
     if (!grid || !user || user.profile.role !== 'model') return;
 
-    const { data, error } = await window.supabase.storage
-        .from('model-gallery')
+    const { data, error } = await window.supabase.storage.from('model-gallery')
         .list(user.id, { limit: 100, sortBy: { column: 'created_at', order: 'desc' } });
 
     if (error || !data || data.length === 0) {
@@ -661,7 +558,6 @@ async function renderGallery() {
     const bucket = window.supabase.storage.from('model-gallery');
     grid.innerHTML = data.map(item => {
         const path = `${user.id}/${item.name}`;
-        // v2: getPublicUrl devuelve { data: { publicUrl } }
         const url = bucket.getPublicUrl(path).data.publicUrl;
         return `
             <div class="gallery-item">
@@ -685,14 +581,12 @@ async function uploadGalleryFile(input) {
     const safeName = file.name.replace(/[^a-zA-Z0-9.\-_]/g, '_');
     const path = `${user.id}/${Date.now()}-${safeName}`;
     try {
-        const { error } = await window.supabase.storage
-            .from('model-gallery')
+        const { error } = await window.supabase.storage.from('model-gallery')
             .upload(path, file, { contentType: file.type, upsert: false });
         if (error) throw error;
         window.showToast('Foto subida', 'success');
         await renderGallery();
     } catch (err) {
-        console.error('Error al subir foto:', err);
         window.showToast('No se pudo subir la foto', 'error');
     }
     input.value = '';
@@ -710,7 +604,7 @@ async function deleteGalleryFile(path) {
 }
 
 // ============================================================================
-// openModelProfile: modal único con perfil público (vista del cliente)
+// openModelProfile: modal público; botón llamar SOLO para clientes
 // ============================================================================
 async function openModelProfile(modelId) {
     const body = document.getElementById('modelModalBody');
@@ -726,8 +620,7 @@ async function openModelProfile(modelId) {
         if (error) throw error;
         payload = data;
     } catch (err) {
-        const { data } = await window.supabase
-            .from('profiles').select('*').eq('id', modelId).single();
+        const { data } = await window.supabase.from('profiles').select('*').eq('id', modelId).single();
         payload = { profile: data, details: null };
     }
 
@@ -737,19 +630,19 @@ async function openModelProfile(modelId) {
         return;
     }
 
+    const viewer = window.appState.currentUser;
+    const isClient = viewer.profile.role === 'client';
     const d = payload.details || {};
     const level = d.level_id ? await fetchLevel(d.level_id) : null;
     const clientRate = level ? Number(level.rate_per_minute) : 0;
 
     let galleryHtml = '<p class="hint">Sin fotos publicas todavia.</p>';
     try {
-        const { data: items } = await window.supabase.storage
-            .from('model-gallery')
+        const { data: items } = await window.supabase.storage.from('model-gallery')
             .list(modelId, { limit: 50, sortBy: { column: 'created_at', order: 'desc' } });
         if (items && items.length > 0) {
             const bucket = window.supabase.storage.from('model-gallery');
             galleryHtml = '<div class="gallery-grid">' + items.map(item => {
-                // v2: getPublicUrl devuelve { data: { publicUrl } }
                 const url = bucket.getPublicUrl(`${modelId}/${item.name}`).data.publicUrl;
                 return `<div class="gallery-item"><img src="${url}" alt="Foto de galeria"></div>`;
             }).join('') + '</div>';
@@ -757,6 +650,12 @@ async function openModelProfile(modelId) {
     } catch (err) {
         galleryHtml = '<p class="hint">Galeria no disponible por ahora.</p>';
     }
+
+    // Botón de llamada: solo clientes, solo si está online y libre
+    const canCall = isClient && p.is_online && !p.in_call && level;
+    const callBtnHtml = canCall
+        ? `<button class="btn" style="margin-top:16px;width:100%;" id="callBtn">Iniciar llamada (${clientRate} tokens/min)</button>`
+        : '';
 
     body.innerHTML = `
         <div class="modal-head">
@@ -768,17 +667,20 @@ async function openModelProfile(modelId) {
         </div>
         <div class="info-row"><span class="info-label">Tarifa</span><span class="info-value">${clientRate} tokens/min</span></div>
         <div class="info-row"><span class="info-label">Especialidad</span><span class="info-value">${d.specialty || 'General'}</span></div>
-        <div class="info-row"><span class="info-label">Estado</span><span class="info-value">${p.in_call ? 'En llamada' : 'En linea'}</span></div>
+        <div class="info-row"><span class="info-label">Estado</span><span class="info-value">${p.in_call ? 'En llamada' : (p.is_online ? 'En linea' : 'Desconectada')}</span></div>
         ${d.bio ? `<p class="modal-bio">${d.bio}</p>` : ''}
         <h4 class="gallery-title">Galeria</h4>
         ${galleryHtml}
-        ${!p.in_call ? '<button class="btn" style="margin-top:16px;width:100%;" id="callBtn">Iniciar llamada</button>' : ''}
+        ${callBtnHtml}
     `;
 
     const callBtn = document.getElementById('callBtn');
-    if (callBtn) callBtn.addEventListener('click', () => {
-        window.showToast('Llamadas disponibles en la proxima entrega', 'info');
-    });
+    if (callBtn) {
+        callBtn.addEventListener('click', () => {
+            closeModelModal();
+            if (typeof window.CND_startCall === 'function') window.CND_startCall(modelId);
+        });
+    }
 }
 
 window.openModelProfile = openModelProfile;
