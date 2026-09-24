@@ -1,131 +1,825 @@
-/* === Añadidos Fase 2A === */
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CONDONIS</title>
+    <link rel="icon" type="image/svg+xml" href="assets/logo.svg">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=Space+Grotesk:wght@600;700&display=swap" rel="stylesheet">
+    <style>
+        /* Estilos globales */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
 
-/* KYC: tarjetas de estado */
-.kyc-card { border-left: 4px solid #94A3B8; }
-.kyc-card.kyc-ok { border-left-color: #22C55E; }
-.kyc-card.kyc-pending { border-left-color: #F59E0B; }
-.kyc-card.kyc-rejected { border-left-color: #EF4444; }
-.kyc-card.kyc-none { border-left-color: #94A3B8; }
+        body {
+            font-family: 'Inter', sans-serif;
+            background: #0B0F17;
+            color: #E2E8F0;
+            min-height: 100vh;
+            padding-bottom: 80px; /* espacio para bottom-nav fija */
+        }
 
-.kyc-badge {
-    padding: 4px 10px;
-    border-radius: 12px;
-    font-size: 12px;
-    font-weight: 700;
-    text-transform: uppercase;
-}
-.kyc-approved { background: rgba(34, 197, 94, 0.2); color: #86EFAC; }
-.kyc-pending { background: rgba(245, 158, 11, 0.2); color: #FCD34D; }
-.kyc-rejected { background: rgba(239, 68, 68, 0.2); color: #FCA5A5; }
-.kyc-none { background: rgba(148, 163, 184, 0.2); color: #CBD5E1; }
+        h1, h2, h3, h4 {
+            font-family: 'Space Grotesk', sans-serif;
+        }
 
-/* KYC: filas de documentos en el modal */
-.kyc-doc-row {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 12px;
-    border: 1px solid rgba(100, 116, 139, 0.3);
-    border-radius: 8px;
-    margin-bottom: 10px;
-}
-.kyc-doc-label { font-weight: 600; color: #E2E8F0; font-size: 14px; }
-.kyc-doc-label .required { color: #EF4444; }
+        /* Header fijo superior */
+        .app-header {
+            position: sticky;
+            top: 0;
+            background: rgba(11, 15, 23, 0.95);
+            backdrop-filter: blur(10px);
+            border-bottom: 1px solid rgba(100, 116, 139, 0.3);
+            padding: 16px 20px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            z-index: 100;
+        }
 
-/* KYC: revisión admin */
-.kyc-review-list {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
-    gap: 12px;
-    margin-top: 12px;
-}
-.kyc-review-item {
-    border: 1px solid rgba(100, 116, 139, 0.3);
-    border-radius: 8px;
-    overflow: hidden;
-}
-.kyc-review-label {
-    padding: 8px;
-    background: rgba(30, 41, 59, 0.5);
-    font-size: 12px;
-    font-weight: 700;
-    text-transform: uppercase;
-    color: #94A3B8;
-}
-.kyc-review-img {
-    width: 100%;
-    height: 200px;
-    object-fit: cover;
-    display: block;
-}
+        .app-header h1 {
+            font-size: 24px;
+            background: linear-gradient(135deg, #00D4FF 0%, #FF006E 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
 
-/* Nivel: badge visible en tarjeta y modal */
-.level-badge {
-    display: inline-block;
-    padding: 2px 8px;
-    border-radius: 10px;
-    background: linear-gradient(135deg, #00D4FF 0%, #FF006E 100%);
-    color: white;
-    font-size: 11px;
-    font-weight: 700;
-    text-transform: uppercase;
-}
-.level-badge.big {
-    padding: 4px 12px;
-    font-size: 14px;
-}
+        .user-info {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
 
-/* Admin: pestañas */
-.admin-tabs {
-    display: flex;
-    gap: 8px;
-    border-bottom: 1px solid rgba(100, 116, 139, 0.3);
-    margin-bottom: 20px;
-    flex-wrap: wrap;
-}
-.admin-tab {
-    padding: 10px 16px;
-    background: transparent;
-    border: none;
-    color: #94A3B8;
-    font-weight: 600;
-    cursor: pointer;
-    border-bottom: 2px solid transparent;
-    font-size: 14px;
-}
-.admin-tab.active {
-    color: #00D4FF;
-    border-bottom-color: #00D4FF;
-}
+        .user-avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #00D4FF 0%, #FF006E 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            font-size: 18px;
+            color: #0B0F17;
+        }
 
-/* Admin: tabla de niveles */
-.levels-table {
-    width: 100%;
-    border-collapse: collapse;
-    margin-top: 12px;
-}
-.levels-table th, .levels-table td {
-    padding: 10px;
-    border-bottom: 1px solid rgba(100, 116, 139, 0.2);
-    font-size: 14px;
-}
-.levels-table th {
-    text-align: left;
-    color: #94A3B8;
-    font-weight: 600;
-    font-size: 12px;
-    text-transform: uppercase;
-}
-.levels-table input {
-    width: 100%;
-    padding: 8px;
-    background: rgba(30, 41, 59, 0.5);
-    border: 1px solid rgba(100, 116, 139, 0.3);
-    border-radius: 6px;
-    color: #E2E8F0;
-    font-size: 14px;
-}
-.levels-table input:focus {
-    outline: none;
-    border-color: #00D4FF;
-}
+        .user-balance {
+            font-size: 14px;
+            color: #00D4FF;
+            font-weight: 600;
+        }
+
+        /* Contenido principal */
+        .app-content {
+            padding: 20px;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        /* Secciones de la SPA: solo una visible a la vez */
+        .section {
+            display: none;
+        }
+
+        .section.active {
+            display: block;
+        }
+
+        /* Bottom Navigation fija */
+        .bottom-nav {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: rgba(15, 23, 42, 0.95);
+            backdrop-filter: blur(10px);
+            border-top: 1px solid rgba(100, 116, 139, 0.3);
+            display: flex;
+            justify-content: space-around;
+            padding: 12px 0;
+            z-index: 100;
+        }
+
+        .nav-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 4px;
+            background: transparent;
+            border: none;
+            color: #94A3B8;
+            cursor: pointer;
+            padding: 8px 16px;
+            transition: all 0.3s;
+        }
+
+        .nav-item.active {
+            color: #00D4FF;
+        }
+
+        .nav-item svg {
+            width: 24px;
+            height: 24px;
+        }
+
+        .nav-label {
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        /* Cards genéricas */
+        .card {
+            background: rgba(30, 41, 59, 0.5);
+            border: 1px solid rgba(100, 116, 139, 0.3);
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 16px;
+        }
+
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+        }
+
+        .card-title {
+            font-size: 18px;
+            font-weight: 700;
+            color: #E2E8F0;
+        }
+
+        /* Filas de información del perfil */
+        .info-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 10px 0;
+            border-bottom: 1px solid rgba(100, 116, 139, 0.2);
+            font-size: 14px;
+        }
+
+        .info-row:last-child {
+            border-bottom: none;
+        }
+
+        .info-label {
+            color: #94A3B8;
+        }
+
+        .info-value {
+            color: #E2E8F0;
+            font-weight: 600;
+        }
+
+        /* Grid de modelos en línea */
+        .models-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 16px;
+            margin-top: 20px;
+        }
+
+        .model-card {
+            background: rgba(30, 41, 59, 0.5);
+            border: 1px solid rgba(100, 116, 139, 0.3);
+            border-radius: 12px;
+            overflow: hidden;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .model-card:hover {
+            transform: translateY(-4px);
+            border-color: #00D4FF;
+            box-shadow: 0 8px 16px rgba(0, 212, 255, 0.2);
+        }
+
+        .model-avatar {
+            width: 100%;
+            aspect-ratio: 1;
+            background: linear-gradient(135deg, #1E293B 0%, #334155 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 48px;
+            font-weight: 700;
+            color: #64748B;
+        }
+
+        .model-info {
+            padding: 16px;
+        }
+
+        .model-name {
+            font-size: 16px;
+            font-weight: 600;
+            margin-bottom: 4px;
+        }
+
+        .model-rate {
+            font-size: 14px;
+            color: #00D4FF;
+            font-weight: 600;
+        }
+
+        .model-meta {
+            font-size: 12px;
+            color: #94A3B8;
+            margin-top: 6px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .model-status {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 600;
+            margin-top: 8px;
+        }
+
+        .status-online {
+            background: rgba(34, 197, 94, 0.2);
+            color: #86EFAC;
+        }
+
+        .badge-incall {
+            background: rgba(245, 158, 11, 0.2);
+            color: #FCD34D;
+        }
+
+        /* Estrellas de calificación (SVG, sin emojis) */
+        .stars {
+            display: inline-flex;
+            gap: 2px;
+            vertical-align: middle;
+        }
+
+        .stars svg {
+            width: 14px;
+            height: 14px;
+            color: #F59E0B;
+        }
+
+        .stars svg.off {
+            color: #334155;
+        }
+
+        /* Switch de disponibilidad (toggle CSS puro) */
+        .switch {
+            position: relative;
+            display: inline-block;
+            width: 52px;
+            height: 28px;
+        }
+
+        .switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+        .slider {
+            position: absolute;
+            inset: 0;
+            background: #334155;
+            border-radius: 999px;
+            transition: 0.3s;
+            cursor: pointer;
+        }
+
+        .slider::before {
+            content: "";
+            position: absolute;
+            width: 22px;
+            height: 22px;
+            left: 3px;
+            top: 3px;
+            background: #E2E8F0;
+            border-radius: 50%;
+            transition: 0.3s;
+        }
+
+        .switch input:checked + .slider {
+            background: #22C55E;
+        }
+
+        .switch input:checked + .slider::before {
+            transform: translateX(24px);
+        }
+
+        .switch input:focus-visible + .slider {
+            outline: 2px solid #00D4FF; /* foco visible (regla D7) */
+        }
+
+        .avail-state {
+            font-size: 13px;
+            font-weight: 700;
+            padding: 4px 10px;
+            border-radius: 12px;
+        }
+
+        .avail-state.on {
+            background: rgba(34, 197, 94, 0.2);
+            color: #86EFAC;
+        }
+
+        .avail-state.off {
+            background: rgba(239, 68, 68, 0.2);
+            color: #FCA5A5;
+        }
+
+        /* Textos de ayuda y avisos */
+        .hint {
+            color: #94A3B8;
+            font-size: 13px;
+            margin-top: 8px;
+            line-height: 1.5;
+        }
+
+        .kyc-warn {
+            color: #FCD34D;
+        }
+
+        .empty-note {
+            color: #94A3B8;
+            margin-top: 20px;
+        }
+
+        /* Formulario del editor de perfil público */
+        .form-row {
+            margin-bottom: 12px;
+        }
+
+        .form-row label {
+            display: block;
+            font-size: 13px;
+            color: #CBD5E1;
+            margin-bottom: 6px;
+            font-weight: 600;
+        }
+
+        .form-row input,
+        .form-row textarea,
+        .form-row select {
+            width: 100%;
+            padding: 10px;
+            background: rgba(30, 41, 59, 0.5);
+            border: 1px solid rgba(100, 116, 139, 0.3);
+            border-radius: 8px;
+            color: #E2E8F0;
+            font-size: 14px;
+            font-family: inherit;
+        }
+
+        .form-row input:focus,
+        .form-row textarea:focus,
+        .form-row select:focus {
+            outline: none;
+            border-color: #00D4FF;
+        }
+
+        /* Galería de fotos */
+        .gallery-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
+            gap: 10px;
+            margin-top: 12px;
+        }
+
+        .gallery-item {
+            position: relative;
+            aspect-ratio: 1;
+            border-radius: 8px;
+            overflow: hidden;
+            border: 1px solid rgba(100, 116, 139, 0.3);
+        }
+
+        .gallery-item img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            display: block;
+        }
+
+        .gallery-del {
+            position: absolute;
+            top: 6px;
+            right: 6px;
+            width: 26px;
+            height: 26px;
+            border: none;
+            border-radius: 6px;
+            background: rgba(11, 15, 23, 0.8);
+            color: #FCA5A5;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .gallery-del svg {
+            width: 14px;
+            height: 14px;
+        }
+
+        .gallery-title {
+            margin-top: 20px;
+            margin-bottom: 4px;
+            font-size: 15px;
+            color: #CBD5E1;
+        }
+
+        /* Modal de perfil de modelo (único y reutilizable, regla A12) */
+        .modal-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.8);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 900;
+            padding: 20px;
+        }
+
+        .modal-overlay.active {
+            display: flex;
+        }
+
+        .modal-card {
+            position: relative;
+            background: #0F172A;
+            border: 1px solid rgba(100, 116, 139, 0.3);
+            border-radius: 12px;
+            padding: 28px;
+            max-width: 560px;
+            width: 100%;
+            max-height: 85vh;
+            overflow-y: auto;
+        }
+
+        .modal-x {
+            position: absolute;
+            top: 12px;
+            right: 12px;
+            width: 32px;
+            height: 32px;
+            border: 1px solid rgba(100, 116, 139, 0.4);
+            border-radius: 8px;
+            background: rgba(30, 41, 59, 0.6);
+            color: #E2E8F0;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal-x svg {
+            width: 16px;
+            height: 16px;
+        }
+
+        .modal-head {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            margin-bottom: 16px;
+        }
+
+        .modal-avatar {
+            width: 72px;
+            height: 72px;
+            aspect-ratio: auto;
+            border-radius: 50%;
+            font-size: 28px;
+            flex-shrink: 0;
+        }
+
+        .modal-title {
+            font-size: 22px;
+            color: #F9FAFB;
+        }
+
+        .modal-bio {
+            margin-top: 12px;
+            color: #CBD5E1;
+            font-size: 14px;
+            line-height: 1.6;
+        }
+
+        /* === AÑADIDOS FASE 2A === */
+
+        /* KYC: tarjetas de estado */
+        .kyc-card { border-left: 4px solid #94A3B8; }
+        .kyc-card.kyc-ok { border-left-color: #22C55E; }
+        .kyc-card.kyc-pending { border-left-color: #F59E0B; }
+        .kyc-card.kyc-rejected { border-left-color: #EF4444; }
+        .kyc-card.kyc-none { border-left-color: #94A3B8; }
+
+        .kyc-badge {
+            padding: 4px 10px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 700;
+            text-transform: uppercase;
+        }
+        .kyc-approved { background: rgba(34, 197, 94, 0.2); color: #86EFAC; }
+        .kyc-pending { background: rgba(245, 158, 11, 0.2); color: #FCD34D; }
+        .kyc-rejected { background: rgba(239, 68, 68, 0.2); color: #FCA5A5; }
+        .kyc-none { background: rgba(148, 163, 184, 0.2); color: #CBD5E1; }
+
+        /* KYC: filas de documentos en el modal */
+        .kyc-doc-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px;
+            border: 1px solid rgba(100, 116, 139, 0.3);
+            border-radius: 8px;
+            margin-bottom: 10px;
+        }
+        .kyc-doc-info {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+        .kyc-doc-label { font-weight: 600; color: #E2E8F0; font-size: 14px; }
+        .kyc-doc-label .required { color: #EF4444; }
+
+        /* KYC: revisión admin */
+        .kyc-review-list {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+            gap: 12px;
+            margin-top: 12px;
+        }
+        .kyc-review-item {
+            border: 1px solid rgba(100, 116, 139, 0.3);
+            border-radius: 8px;
+            overflow: hidden;
+        }
+        .kyc-review-label {
+            padding: 8px;
+            background: rgba(30, 41, 59, 0.5);
+            font-size: 12px;
+            font-weight: 700;
+            text-transform: uppercase;
+            color: #94A3B8;
+        }
+        .kyc-review-img {
+            width: 100%;
+            height: 200px;
+            object-fit: cover;
+            display: block;
+        }
+
+        /* Nivel: badge visible en tarjeta y modal */
+        .level-badge {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 10px;
+            background: linear-gradient(135deg, #00D4FF 0%, #FF006E 100%);
+            color: white;
+            font-size: 11px;
+            font-weight: 700;
+            text-transform: uppercase;
+        }
+        .level-badge.big {
+            padding: 4px 12px;
+            font-size: 14px;
+        }
+
+        /* Admin: pestañas */
+        .admin-tabs {
+            display: flex;
+            gap: 8px;
+            border-bottom: 1px solid rgba(100, 116, 139, 0.3);
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+        .admin-tab {
+            padding: 10px 16px;
+            background: transparent;
+            border: none;
+            color: #94A3B8;
+            font-weight: 600;
+            cursor: pointer;
+            border-bottom: 2px solid transparent;
+            font-size: 14px;
+        }
+        .admin-tab.active {
+            color: #00D4FF;
+            border-bottom-color: #00D4FF;
+        }
+
+        /* Admin: tabla de niveles */
+        .levels-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 12px;
+        }
+        .levels-table th, .levels-table td {
+            padding: 10px;
+            border-bottom: 1px solid rgba(100, 116, 139, 0.2);
+            font-size: 14px;
+        }
+        .levels-table th {
+            text-align: left;
+            color: #94A3B8;
+            font-weight: 600;
+            font-size: 12px;
+            text-transform: uppercase;
+        }
+        .levels-table input {
+            width: 100%;
+            padding: 8px;
+            background: rgba(30, 41, 59, 0.5);
+            border: 1px solid rgba(100, 116, 139, 0.3);
+            border-radius: 6px;
+            color: #E2E8F0;
+            font-size: 14px;
+        }
+        .levels-table input:focus {
+            outline: none;
+            border-color: #00D4FF;
+        }
+
+        /* Botones */
+        .btn {
+            padding: 12px 24px;
+            background: linear-gradient(135deg, #00D4FF 0%, #0099CC 100%);
+            border: none;
+            border-radius: 8px;
+            color: white;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 16px rgba(0, 212, 255, 0.3);
+        }
+
+        .btn-secondary {
+            background: rgba(100, 116, 139, 0.3);
+        }
+
+        .btn-danger {
+            background: linear-gradient(135deg, #EF4444 0%, #DC2626 100%);
+        }
+
+        /* Toasts de notificación */
+        .toast-container {
+            position: fixed;
+            top: 80px;
+            right: 20px;
+            z-index: 1000;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .toast {
+            background: rgba(30, 41, 59, 0.95);
+            border: 1px solid rgba(100, 116, 139, 0.3);
+            border-radius: 8px;
+            padding: 16px 20px;
+            min-width: 300px;
+            backdrop-filter: blur(10px);
+            animation: slideIn 0.3s ease-out;
+        }
+
+        .toast.success { border-left: 4px solid #22C55E; }
+        .toast.error { border-left: 4px solid #EF4444; }
+        .toast.info { border-left: 4px solid #00D4FF; }
+
+        @keyframes slideIn {
+            from { transform: translateX(400px); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+
+        /* Spinner de carga */
+        .spinner {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
+            border-top-color: white;
+            animation: spin 0.8s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        /* Responsive mobile-first */
+        @media (max-width: 768px) {
+            .models-grid {
+                grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Header con identidad y saldo -->
+    <header class="app-header">
+        <h1>CONDONIS</h1>
+        <div class="user-info">
+            <div class="user-balance" id="userBalance">0 tokens</div>
+            <div class="user-avatar" id="userAvatar">U</div>
+        </div>
+    </header>
+
+    <!-- Contenido principal de la SPA -->
+    <main class="app-content">
+        <!-- Sección: Home (panel de modelo o listado de modelos online) -->
+        <section id="sectionHome" class="section active">
+            <h2>Modelos en Línea</h2>
+            <p style="color: #94A3B8; margin-top: 8px;">Conecta con modelos disponibles ahora</p>
+
+            <!-- Zona exclusiva de modelos: KYC, disponibilidad, nivel, galería -->
+            <div id="availabilityZone" style="margin-top: 20px;"></div>
+
+            <!-- Grid de tarjetas de modelos (innerHTML= siempre, regla A6) -->
+            <div id="modelsContainer" class="models-grid"></div>
+        </section>
+
+        <!-- Sección: Mi Perfil -->
+        <section id="sectionProfile" class="section">
+            <h2>Mi Perfil</h2>
+            <div class="card" style="margin-top: 20px;">
+                <div class="card-header">
+                    <span class="card-title">Información Personal</span>
+                </div>
+                <div id="profileContent"></div>
+                <button class="btn btn-danger" onclick="logout()" style="margin-top: 16px;">Cerrar Sesión</button>
+            </div>
+        </section>
+
+        <!-- Sección: Historial -->
+        <section id="sectionHistory" class="section">
+            <h2>Historial</h2>
+            <div id="historyContent" style="margin-top: 20px;"></div>
+        </section>
+
+        <!-- Sección: Admin (solo visible para rol admin) -->
+        <section id="sectionAdmin" class="section">
+            <h2>Panel de Administración</h2>
+            <div id="adminContent" style="margin-top: 20px;"></div>
+        </section>
+    </main>
+
+    <!-- Modal único de perfil de modelo / KYC / revisión admin (regla A12) -->
+    <div id="modelModal" class="modal-overlay" role="dialog" aria-modal="true" aria-label="Ventana de detalle">
+        <div class="modal-card">
+            <button class="modal-x" id="modelModalClose" aria-label="Cerrar">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg>
+            </button>
+            <div id="modelModalBody"></div>
+        </div>
+    </div>
+
+    <!-- Bottom Navigation con iconos SVG (sin emojis, regla D1) -->
+    <nav class="bottom-nav">
+        <button class="nav-item active" data-section="sectionHome" aria-label="Ir a inicio">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
+                <polyline points="9 22 9 12 15 12 15 22"></polyline>
+            </svg>
+            <span class="nav-label">Inicio</span>
+        </button>
+        <button class="nav-item" data-section="sectionHistory" aria-label="Ver historial">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="12" cy="12" r="10"></circle>
+                <polyline points="12 6 12 12 16 14"></polyline>
+            </svg>
+            <span class="nav-label">Historial</span>
+        </button>
+        <button class="nav-item" data-section="sectionProfile" aria-label="Ver mi perfil">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+                <circle cx="12" cy="7" r="4"></circle>
+            </svg>
+            <span class="nav-label">Perfil</span>
+        </button>
+    </nav>
+
+    <!-- Contenedor de notificaciones toast -->
+    <div class="toast-container" id="toastContainer"></div>
+
+    <!-- Scripts: cada archivo UNA sola vez y en orden (regla A1) -->
+    <script type="module" src="js/config.js"></script>
+    <script type="module" src="js/core.js"></script>
+    <script type="module" src="js/models.js"></script>
+    <script type="module" src="js/admin.js"></script>
+</body>
+</html>
