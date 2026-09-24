@@ -1,5 +1,8 @@
 // ============================================================================
 // CONDONIS - CORE: sesión, navegación, Realtime, utilidades
+// V4.0: bloqueo de cuentas baneadas, saldo infinito visual para admin,
+// reconexión Realtime al restaurar desde Back-Forward Cache, y hook de
+// historial para js/tokens.js.
 // ============================================================================
 
 window.appState = {
@@ -19,15 +22,24 @@ async function initApp() {
             return;
         }
         window.appState.currentUser = session.user;
+
         await loadUserProfile();
+
+        // Bloqueo de cuentas baneadas: se expulsa y no entra
+        const profile = window.appState.currentUser.profile;
+        if (profile && profile.is_banned) {
+            showToast('Tu cuenta esta suspendida. Razon: ' + (profile.ban_reason || 'consulta a soporte'), 'error');
+            await window.supabase.auth.signOut();
+            window.location.href = 'index.html';
+            return;
+        }
+
         setupUIForRole();
         setupRealtimeSubscriptions();
         showSection('sectionHome');
 
-        // Gancho para módulos de fase
         if (typeof window.onAppReady === 'function') window.onAppReady();
-        if (typeof window.onAppReadyAdmin === 'function' &&
-            window.appState.currentUser.profile.role === 'admin') {
+        if (typeof window.onAppReadyAdmin === 'function' && profile.role === 'admin') {
             window.onAppReadyAdmin();
         }
 
@@ -57,7 +69,12 @@ function updateUserUI() {
     const avatar = document.getElementById('userAvatar');
     if (avatar) avatar.textContent = (profile.full_name || 'U').charAt(0).toUpperCase();
     const balance = document.getElementById('userBalance');
-    if (balance) balance.textContent = `${Number(profile.tokens_balance || 0)} tokens`;
+    if (balance) {
+        // El admin tiene saldo ilimitado: se muestra infinito, no cifras
+        balance.textContent = profile.role === 'admin'
+            ? 'tokens: ilimitados'
+            : `${Number(profile.tokens_balance || 0)} tokens`;
+    }
 }
 
 function setupUIForRole() {
@@ -101,6 +118,16 @@ function handleProfileUpdate(payload) {
     }, window.CND_CONFIG.DEBOUNCE_DELAY);
 }
 
+// Reconexión Realtime al restaurar la página desde Back-Forward Cache:
+// elimina el canal muerto del bfcache y crea uno nuevo (mitiga rojos)
+window.addEventListener('pageshow', (e) => {
+    if (e.persisted && window.appState.realtimeSubscription) {
+        try { window.supabase.removeChannel(window.appState.realtimeSubscription); } catch (err) {}
+        window.appState.realtimeSubscription = null;
+        setupRealtimeSubscriptions();
+    }
+});
+
 function showSection(sectionId) {
     document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
     const target = document.getElementById(sectionId);
@@ -120,7 +147,12 @@ function loadSectionContent(sectionId) {
     } else if (sectionId === 'sectionProfile') {
         renderProfileSection();
     } else if (sectionId === 'sectionHistory') {
-        renderHistoryPlaceholder();
+        // Historial económico real si tokens.js está cargado
+        if (typeof window.renderHistorySection === 'function') {
+            window.renderHistorySection();
+        } else {
+            renderHistoryPlaceholder();
+        }
     } else if (sectionId === 'sectionAdmin') {
         if (typeof window.renderAdminSection === 'function') {
             window.renderAdminSection();
@@ -142,7 +174,7 @@ function renderProfileSection() {
         <div class="info-row"><span class="info-label">Nombre</span><span class="info-value">${profile.full_name}</span></div>
         <div class="info-row"><span class="info-label">Correo</span><span class="info-value">${profile.email}</span></div>
         <div class="info-row"><span class="info-label">Rol</span><span class="info-value">${profile.role}</span></div>
-        <div class="info-row"><span class="info-label">Saldo</span><span class="info-value">${Number(profile.tokens_balance || 0)} tokens</span></div>
+        <div class="info-row"><span class="info-label">Saldo</span><span class="info-value">${profile.role === 'admin' ? 'ilimitado' : Number(profile.tokens_balance || 0) + ' tokens'}</span></div>
         <div class="info-row"><span class="info-label">Ganancias retenidas</span><span class="info-value">${Number(profile.tokens_retained || 0)} tokens</span></div>
         <div class="info-row"><span class="info-label">Estado KYC</span><span class="info-value">${profile.kyc_status}</span></div>
     `;
