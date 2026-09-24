@@ -2109,3 +2109,62 @@ Error imputable a la transcripción de la IA, no al proyecto del dueño.
 12. Perfil: Eliminar mi cuenta → confirma → cuenta borrada y correo libre
     para registrarse de nuevo.
 13. Registro: TyC muestran las cláusulas 13, 14 y 15.
+---
+
+## FASE 6 - Liquidación correcta, UI de llamada organizada, ofertas, retiros y agencias (V6.0)
+**Fecha:** 24 de septiembre de 2026  
+**Versión:** FASE-6-V6.0-2026-09-24
+
+### Correcciones solicitadas por el dueño:
+1. UI de llamada reorganizada: dock inferior en columna (chat plegable con
+   botón Ocultar/Mostrar, fila de regalos con scroll, barra de colgar) y
+   barra superior con mic/cámara a la izquierda y timer/costo a la derecha.
+   Nada queda tapado ni se bloquea la escritura del chat.
+2. Liquidación al colgar (RPC settle_call):
+   - Cuelga el CLIENTE: se cobran los segundos finales pendientes y la
+     modelo recibe su 50% completo del tiempo total.
+   - Cuelga la MODELO: la modelo NO cobra; lo ya tickeado se le reversa y
+     esa parte la retiene la plataforma (app_fee). El cliente paga todo el
+     tiempo transcurrido en ambos casos.
+   - Idempotente: solo liquida una vez; el lado remoto solo limpia UI.
+3. La foto de perfil de la modelo se muestra en las tarjetas del listado y
+   en la cabecera del modal cuando está en línea.
+
+### Fase 6 (nuevo):
+- Ofertas de show: cliente envía (monto, minutos, descripción) desde el
+  perfil; la modelo ve ofertas pendientes con expiración de 5 min y acepta
+  (cobro al cliente + 50% a la modelo) o rechaza.
+- Retiros: la modelo solicita retiro de su saldo retenido (queda bloqueado
+  en model_payouts pending); paga el dueño de su agencia o el admin si no
+  tiene agencia; al rechazar se devuelve el saldo retenido.
+- Agencias: panel propio del dueño (reporte mensual por modelo, retiros
+  pendientes de sus modelos con pagar/rechazar, pagos recibidos del admin)
+  y tabs admin nuevas "Agencias" (crear, asignar modelos, registrar pagos)
+  y "Retiros" (aprobar/rechazar), inyectadas sin reescribir admin.js.
+
+### SQL Fase 6: settle_call, create_show_offer, respond_show_offer,
+request_model_payout, approve_payout, register_model_payout corregido,
+verify_schema ampliada.
+
+### Archivos tocados:
+1. js/calls.js (completo: dock + settle)
+2. js/models.js (completo: foto en tarjetas, ofertas, retiros)
+3. js/agencies.js (NUEVO)
+4. js/config.js (build FASE-6-V6.0-2026-09-24)
+5. app.html (solo línea de script agencies.js)
+
+### Lección registrada: en scripts SQL, las publicaciones Realtime y
+REPLICA IDENTITY siempre van DESPUÉS del CREATE TABLE correspondiente
+(bug 42P01 de la entrega Fase 5).
+
+### Checklist Fase 6:
+1. SQL ejecutado → Success; verify_schema() todo true.
+2. En llamada: chat escribible, regalos visibles sin tapar, colgar accesible.
+3. Cliente cuelga → en Table Editor: video_calls ended con total_earned =
+   50% del total; tokens_retained de la modelo sube; transacciones de ambos.
+4. Modelo cuelga → total_earned = 0 y reverso de lo tickeado en retenido;
+   app_fee incluye esa parte.
+5. Tarjetas del listado muestran la foto de perfil de la modelo.
+6. Cliente envía oferta → modelo la ve, acepta → cobro y ganancia correctos.
+7. Modelo solicita retiro → admin o agencia lo aprueba/rechaza correctamente.
+8. Dueño de agencia ve su panel con reporte y retiros de sus modelos.
