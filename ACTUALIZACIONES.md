@@ -2024,3 +2024,88 @@ Error imputable a la transcripción de la IA, no al proyecto del dueño.
     index.html.
 11. Cero errores rojos en consola (salvo los avisos de bfcache del navegador
     al cambiar de pestaña, que son inocuos).
+
+    ---
+
+## FASE 5 - Chat seguro, regalos, solicitudes, avatares y eliminación (V5.0)
+**Fecha:** 24 de septiembre de 2026  
+**Versión:** FASE-5-V5.0-2026-09-24
+
+### 1) Chat dentro de la llamada (js/chat.js NUEVO):
+- Panel de chat aparece solo cuando audio/video están conectados.
+- Filtro automático de: emails, URLs/dominios, teléfonos, handles @,
+  WhatsApp/Telegram/Instagram/Facebook/TikTok/etc., PayPal/Zelle/Venmo/
+  Binance/IBAN/CLABE/bancos/transferencias/pago móvil, direcciones y frases
+  de intercambio de contacto (es/en).
+- Al detectar: el mensaje se BLOQUEA y se crea una alerta para el admin con
+  la CONVERSACIÓN COMPLETA (RPC report_chat_violation + tabla admin_alerts).
+- Admin recibe notificación en vivo (Realtime) con badge y visor de conversa.
+
+### 2) Controles de llamada:
+- Botón de micrófono on/off (track.enabled).
+- Botón de cambio de cámara frontal/trasera con facingMode exact y
+  replaceTrack (compatible Android e iOS); aviso si el dispositivo no tiene
+  segunda cámara.
+
+### 3) Regalos (10, precios 5 a 100 tokens de cliente):
+- Tabla gifts sembrada; el cliente ve y paga el precio completo.
+- La modelo ve SOLO la mitad (su ganancia) y cree que ese es el precio real;
+  en ningún apartado de la app se le muestra el precio del cliente ni el 50%.
+- Cliente envía directo; la modelo SOLICITA y el cliente acepta o rechaza.
+- Economía: cliente -precio, modelo +50%, traza en token_transactions y
+  call_gifts (RPC send_gift).
+- Animación de regalo en el centro de la llamada desde assets/gifts/ con
+  formatos admitidos: mp4, webm, gif, webp, json (Lottie), glb, gltf
+  (nombres gift-1 … gift-10; si no existe archivo, destello de respaldo).
+
+### 4) Solicitudes de tokens de la modelo (máx 500):
+- Botón solo para la modelo; el cliente acepta o rechaza en modal; al
+  aceptar se descuentan sus tokens y la modelo recibe la mitad (send_token_tip).
+
+### 5) Foto de perfil para todos los usuarios:
+- Bucket público avatars; subida desde Perfil (PNG/JPG/WEBP); avatar en
+  header y en perfil.
+
+### 6) Eliminación de cuenta propia (requisito Play Store/App Store):
+- Botón "Eliminar mi cuenta" en Perfil con confirmación ELIMINAR; RPC
+  self_delete_account borra storage, identities, sesiones y auth.users;
+  el correo queda libre para re-registro.
+
+### 7) TyC y Privacidad actualizados (inyección idempotente en auth.js):
+- Cláusulas 13 (chat y protección de datos), 14 (regalos virtuales) y
+  15 (eliminación de cuenta) en TyC; cláusula 11 (moderación de chat) en
+  Privacidad.
+
+### SQL Fase 5:
+- Realtime para messages y admin_alerts + replica identity.
+- Tablas gifts (10 semillas), call_gifts, admin_alerts con RLS.
+- Bucket avatars con políticas.
+- RPCs: send_gift, send_token_tip, report_chat_violation,
+  self_delete_account. verify_schema() ampliada.
+
+### Archivos tocados:
+1. js/chat.js (NUEVO)
+2. js/calls.js (completo: chat, mic, cámara, regalos, solicitudes, FX)
+3. js/core.js (completo: avatar + eliminar cuenta)
+4. js/admin.js (completo: pestaña Alertas con conversación)
+5. js/auth.js (completo: TyC/Privacidad V5 inyectados)
+6. js/config.js (build FASE-5-V5.0-2026-09-24)
+7. app.html (solo se agrega script js/chat.js)
+
+### Checklist de verificación Fase 5:
+1. SQL Fase 5 → Success; verify_schema() todo true.
+2. Crear carpeta assets/gifts/ (puede ir vacía al inicio).
+3. Llamada conectada → aparece chat, controles y fila de regalos.
+4. Enviar mensaje normal → llega al otro lado en <1s.
+5. Escribir un teléfono o "mi whatsapp es..." → mensaje bloqueado + toast;
+   admin recibe alerta con la conversación completa y badge rojo.
+6. Micrófono: al silenciar, el otro lado deja de oír; al activar, vuelve.
+7. Cambiar cámara en móvil: alterna frontal/trasera sin caer la llamada.
+8. Cliente envía regalo de 20 → se le descuentan 20; la modelo ve +10 y la
+   animación suena en ambos lados.
+9. Modelo pide un regalo → cliente ve modal con precio real → aceptar descuenta.
+10. Modelo pide 100 tokens → cliente acepta → -100 cliente, +50 modelo.
+11. Perfil: subir foto de perfil → aparece en header.
+12. Perfil: Eliminar mi cuenta → confirma → cuenta borrada y correo libre
+    para registrarse de nuevo.
+13. Registro: TyC muestran las cláusulas 13, 14 y 15.
