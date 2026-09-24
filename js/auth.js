@@ -1,178 +1,88 @@
 // ============================================================================
-// CONDONIS - AUTH: Login, Registro y Confirmación por Enlace
-// Flujo sin OTP: el correo por defecto de Supabase trae el enlace, y ese
-// enlace cae en confirm.html gracias a emailRedirectTo + Redirect URLs.
+// CONDONIS - AUTH: login/registro + TyC vivos actualizados por versión
+// V5.0: inyecta las cláusulas nuevas (chat seguro, regalos, eliminación de
+// cuenta) dentro de los modales existentes sin reescribir index.html.
 // ============================================================================
 
-// ============================================================================
-// FUNCIÓN: initAuth()
-// Inicializa todos los bloques de autenticación al cargar index.html
-// ============================================================================
 function initAuth() {
-    setupAuthTabs();            // cambio login/registro
-    setupLoginForm();           // envío de login
-    setupRegisterForm();        // envío de registro
-    setupResendConfirmation();  // reenvío de enlace para pendientes
-    setupModals();              // modales TyC y Privacidad
-    checkExistingSession();     // redirección si ya hay sesión
+    setupAuthTabs();
+    setupLoginForm();
+    setupRegisterForm();
+    setupResendConfirmation();
+    setupModals();
+    injectLegalV5();
+    checkExistingSession();
 }
 
-// ============================================================================
-// FUNCIÓN: checkExistingSession()
-// Si ya hay sesión activa (incluye llegada con tokens en el hash), entra
-// ============================================================================
 async function checkExistingSession() {
     try {
         const { data: { session } } = await window.supabase.auth.getSession();
-
-        if (session) {
-            window.location.href = 'app.html'; // sesión viva: entrar
-        }
-    } catch (error) {
-        console.error('Error al verificar sesión:', error);
-    }
+        if (session) window.location.href = 'app.html';
+    } catch (error) { console.error('Error al verificar sesión:', error); }
 }
 
-// ============================================================================
-// FUNCIÓN: switchTab()
-// Activa un tab ('login' | 'register') y su formulario correspondiente
-// ============================================================================
 function switchTab(tabName) {
-    const tabs = document.querySelectorAll('.auth-tab');
-    const forms = document.querySelectorAll('.auth-form');
-
-    tabs.forEach(t => {
-        t.classList.toggle('active', t.dataset.tab === tabName);
-    });
-
-    forms.forEach(form => {
-        form.classList.toggle('active', form.id === `${tabName}Form`);
-    });
+    document.querySelectorAll('.auth-tab').forEach(t => t.classList.toggle('active', t.dataset.tab === tabName));
+    document.querySelectorAll('.auth-form').forEach(f => f.classList.toggle('active', f.id === tabName + 'Form'));
 }
 
-// ============================================================================
-// FUNCIÓN: setupAuthTabs()
-// Configura el clic en los tabs de login y registro
-// ============================================================================
 function setupAuthTabs() {
     document.querySelectorAll('.auth-tab').forEach(tab => {
-        tab.addEventListener('click', () => {
-            switchTab(tab.dataset.tab); // conmuta tab y formulario
-            hideAlert();                // limpia mensajes al cambiar
-        });
+        tab.addEventListener('click', () => { switchTab(tab.dataset.tab); hideAlert(); });
     });
 }
 
-// ============================================================================
-// FUNCIÓN: setupLoginForm()
-// Procesa el inicio de sesión con email y contraseña
-// ============================================================================
 function setupLoginForm() {
     const form = document.getElementById('loginForm');
     if (!form) return;
-
     form.addEventListener('submit', async (e) => {
-        e.preventDefault(); // sin recarga de página
-
+        e.preventDefault();
         const email = document.getElementById('loginEmail').value.trim();
         const password = document.getElementById('loginPassword').value;
         const button = document.getElementById('loginBtn');
-
-        button.disabled = true;
-        button.innerHTML = '<span class="spinner"></span>';
-
+        button.disabled = true; button.innerHTML = '<span class="spinner"></span>';
         try {
-            const { data, error } = await window.supabase.auth.signInWithPassword({
-                email,
-                password
-            });
-
+            const { data, error } = await window.supabase.auth.signInWithPassword({ email, password });
             if (error) throw error;
-
             showAlert('Inicio de sesión exitoso', 'success');
-            setTimeout(() => {
-                window.location.href = 'app.html';
-            }, 800);
-
+            setTimeout(() => { window.location.href = 'app.html'; }, 800);
         } catch (error) {
-            console.error('Error en login:', error);
-
-            if (String(error.message).includes('Invalid login credentials')) {
-                showAlert('Credenciales inválidas. Verifica tu correo y contraseña.', 'error');
-            } else if (String(error.message).includes('not confirmed')) {
-                showAlert('Tu correo aún no está confirmado. Pulsa "Reenviar enlace" aquí abajo y abre el correo que te llegue.', 'error');
-            } else {
-                showAlert(error.message || 'Error al iniciar sesión', 'error');
-            }
-
-            button.disabled = false;
-            button.textContent = 'Iniciar Sesión';
+            if (String(error.message).includes('Invalid login credentials')) showAlert('Credenciales inválidas.', 'error');
+            else if (String(error.message).includes('not confirmed')) showAlert('Correo sin confirmar. Usa Reenviar enlace.', 'error');
+            else showAlert(error.message || 'Error al iniciar sesión', 'error');
+            button.disabled = false; button.textContent = 'Iniciar Sesión';
         }
     });
 }
 
-// ============================================================================
-// FUNCIÓN: setupResendConfirmation()
-// Reenvía el correo de confirmación usando el email escrito en el login
-// ============================================================================
 function setupResendConfirmation() {
     const link = document.getElementById('resendConfirmationLink');
     if (!link) return;
-
     link.addEventListener('click', async (e) => {
-        e.preventDefault(); // no navegar
-
+        e.preventDefault();
         const email = document.getElementById('loginEmail').value.trim();
-
-        // Sin correo escrito no hay a quién reenviar
-        if (!email) {
-            showAlert('Escribe tu correo arriba y luego pulsa Reenviar enlace.', 'error');
-            return;
-        }
-
+        if (!email) { showAlert('Escribe tu correo arriba primero.', 'error'); return; }
         try {
-            // Supabase reenvía el correo de confirmación de signup
-            const { error } = await window.supabase.auth.resend({
-                type: 'signup',
-                email: email
-            });
-
+            const { error } = await window.supabase.auth.resend({ type: 'signup', email });
             if (error) throw error;
-
-            showAlert('Enlace de confirmación reenviado. Revisa tu bandeja de entrada y ábrelo.', 'success');
-        } catch (error) {
-            console.error('Error al reenviar confirmación:', error);
-            showAlert('No pudimos reenviar el enlace. Verifica que el correo esté bien escrito o espera un minuto.', 'error');
-        }
+            showAlert('Enlace reenviado. Revisa tu bandeja.', 'success');
+        } catch (error) { showAlert('No se pudo reenviar ahora.', 'error'); }
     });
 }
 
-// ============================================================================
-// FUNCIÓN: setupRegisterForm()
-// Registro con validaciones legales y arranque del flujo de enlace
-// ============================================================================
 function setupRegisterForm() {
     const form = document.getElementById('registerForm');
     if (!form) return;
-
     const roleSelect = document.getElementById('registerRole');
     const ageCheck = document.getElementById('ageCheck');
 
-    // El checkbox de mayoría de edad solo aplica a modelos (regla L1)
     roleSelect.addEventListener('change', () => {
-        if (roleSelect.value === 'model') {
-            ageCheck.style.display = 'flex';
-            document.getElementById('isAdult').required = true;
-        } else {
-            ageCheck.style.display = 'none';
-            document.getElementById('isAdult').required = false;
-            document.getElementById('isAdult').checked = false;
-        }
+        if (roleSelect.value === 'model') { ageCheck.style.display = 'flex'; document.getElementById('isAdult').required = true; }
+        else { ageCheck.style.display = 'none'; document.getElementById('isAdult').required = false; document.getElementById('isAdult').checked = false; }
     });
 
     form.addEventListener('submit', async (e) => {
         e.preventDefault();
-
         const name = document.getElementById('registerName').value.trim();
         const email = document.getElementById('registerEmail').value.trim();
         const password = document.getElementById('registerPassword').value;
@@ -181,124 +91,92 @@ function setupRegisterForm() {
         const isAdult = document.getElementById('isAdult').checked;
         const button = document.getElementById('registerBtn');
 
-        if (!acceptTerms) {
-            showAlert('Debes aceptar los Términos y Condiciones', 'error');
-            return;
-        }
+        if (!acceptTerms) { showAlert('Debes aceptar los Términos y Condiciones', 'error'); return; }
+        if (role === 'model' && !isAdult) { showAlert('Debes confirmar que eres mayor de 18 años', 'error'); return; }
 
-        if (role === 'model' && !isAdult) {
-            showAlert('Debes confirmar que eres mayor de 18 años', 'error');
-            return;
-        }
-
-        button.disabled = true;
-        button.innerHTML = '<span class="spinner"></span>';
-
+        button.disabled = true; button.innerHTML = '<span class="spinner"></span>';
         try {
-            // Página propia donde debe caer el enlace de confirmación
             const confirmUrl = new URL('confirm.html', window.location.href).toString();
-
-            // Crear usuario con metadata para el trigger de perfiles
             const { data, error } = await window.supabase.auth.signUp({
-                email,
-                password,
-                options: {
-                    data: {
-                        full_name: name,
-                        role: role
-                    },
-                    emailRedirectTo: confirmUrl // el enlace abre confirm.html
-                }
+                email, password,
+                options: { data: { full_name: name, role }, emailRedirectTo: confirmUrl }
             });
-
             if (error) throw error;
 
-            // identities vacío = correo ya registrado previamente
             if (data.user && data.user.identities && data.user.identities.length === 0) {
-                showAlert('Este correo ya está registrado. Si no lo confirmaste, pulsa "Reenviar enlace" en Iniciar Sesión.', 'error');
-                document.getElementById('loginEmail').value = email; // prellenar
-                switchTab('login'); // llevar al login con el correo listo
-                button.disabled = false;
-                button.textContent = 'Crear Cuenta';
-                return;
-            }
-
-            if (data.session) {
-                // Confirmación desactivada en el proyecto: entrar directo
-                showAlert('Cuenta creada exitosamente. Redirigiendo...', 'success');
-                setTimeout(() => {
-                    window.location.href = 'app.html';
-                }, 1200);
+                showAlert('Este correo ya está registrado. Inicia sesión o reenvía el enlace.', 'error');
+                document.getElementById('loginEmail').value = email;
+                switchTab('login');
+            } else if (data.session) {
+                showAlert('Cuenta creada. Redirigiendo...', 'success');
+                setTimeout(() => { window.location.href = 'app.html'; }, 1200);
             } else {
-                // Confirmación activada: guiar al correo y preparar login
-                showAlert('Cuenta creada. Revisa tu bandeja de entrada y abre el enlace de confirmación para activar tu cuenta.', 'success');
-                document.getElementById('loginEmail').value = email; // prellenar
-                switchTab('login'); // queda listo para entrar al confirmar
-                form.reset();       // limpiar formulario de registro
+                showAlert('Cuenta creada. Revisa tu correo y abre el enlace de confirmación.', 'success');
+                document.getElementById('loginEmail').value = email;
+                switchTab('login');
+                form.reset();
             }
-
         } catch (error) {
-            console.error('Error en registro:', error);
             showAlert(error.message || 'Error al crear la cuenta', 'error');
         }
-
-        button.disabled = false;
-        button.textContent = 'Crear Cuenta';
+        button.disabled = false; button.textContent = 'Crear Cuenta';
     });
 }
 
-// ============================================================================
-// FUNCIÓN: setupModals()
-// Abre los modales de TyC y Privacidad desde los enlaces del registro
-// ============================================================================
 function setupModals() {
     const showTerms = document.getElementById('showTerms');
-    if (showTerms) {
-        showTerms.addEventListener('click', (e) => {
-            e.preventDefault();
-            document.getElementById('termsModal').classList.add('active');
-        });
-    }
-
+    if (showTerms) showTerms.addEventListener('click', (e) => { e.preventDefault(); document.getElementById('termsModal').classList.add('active'); });
     const showPrivacy = document.getElementById('showPrivacy');
-    if (showPrivacy) {
-        showPrivacy.addEventListener('click', (e) => {
-            e.preventDefault();
-            document.getElementById('privacyModal').classList.add('active');
-        });
-    }
+    if (showPrivacy) showPrivacy.addEventListener('click', (e) => { e.preventDefault(); document.getElementById('privacyModal').classList.add('active'); });
 }
 
 // ============================================================================
-// FUNCIÓN: closeModal()
-// Cierra un modal por su id (onclick inline del HTML)
+// injectLegalV5(): añade cláusulas nuevas a TyC y Privacidad (idempotente)
 // ============================================================================
+function injectLegalV5() {
+    const terms = document.querySelector('#termsModal .modal-content');
+    if (terms && !document.getElementById('legalV5Terms')) {
+        const block = document.createElement('div');
+        block.id = 'legalV5Terms';
+        block.innerHTML = `
+            <p><strong>13. Chat dentro de las llamadas y protección de datos</strong></p>
+            <p>Durante las videollamadas existe un chat destinado únicamente a la comunicación entre cliente y modelo. Queda estrictamente prohibido compartir o solicitar: numeros de telefono, WhatsApp, Telegram, correos electronicos, usuarios de redes sociales, direcciones de domicilio, datos bancarios, cuentas de pago (PayPal, Zelle, Binance, Cash App u otras) y enlaces o URLs. El sistema detecta y bloquea automaticamente este tipo de contenido y genera una alerta inmediata al equipo de administración con la conversación completa. Las cuentas que intenten evadir esta regla podran ser suspendidas o eliminadas sin previo aviso.</p>
+            <p><strong>14. Regalos y artículos virtuales</strong></p>
+            <p>Los clientes pueden enviar regalos virtuales durante las llamadas. Cada regalo tiene un precio en tokens que se descuenta del saldo del cliente y acredita a la modelo el porcentaje que la plataforma define para su nivel. Los regalos y tokens son artículos virtuales: no tienen valor monetario fuera de la plataforma, no son transferibles entre usuarios y no son reembolsables una vez enviados o consumidos.</p>
+            <p><strong>15. Eliminación de cuenta</strong></p>
+            <p>Cualquier usuario puede eliminar su cuenta de forma definitiva desde su perfil, o solicitarlo al soporte. La eliminación borra de manera permanente el perfil, los datos personales, los documentos de verificación, el historial de llamadas y transacciones, y libera el correo para un registro futuro, salvo la información que la ley obligue a conservar. Esta opción cumple con los requisitos de las tiendas de aplicaciones.</p>
+        `;
+        const closeBtn = terms.querySelector('.modal-close');
+        terms.insertBefore(block, closeBtn);
+    }
+
+    const privacy = document.querySelector('#privacyModal .modal-content');
+    if (privacy && !document.getElementById('legalV5Privacy')) {
+        const block = document.createElement('div');
+        block.id = 'legalV5Privacy';
+        block.innerHTML = `
+            <p><strong>11. Moderación del chat de llamadas</strong></p>
+            <p>Para proteger a la comunidad y cumplir la ley, los mensajes del chat dentro de las llamadas son analizados automaticamente en busca de datos personales o de pago. Cuando se detecta una infracción, el mensaje se bloquea y se conserva una copia de la conversación para revisión exclusiva del equipo de administración. No se lee ni conserva el contenido de las videollamadas.</p>
+        `;
+        const closeBtn = privacy.querySelector('.modal-close');
+        privacy.insertBefore(block, closeBtn);
+    }
+}
+
 function closeModal(modalId) {
     const modal = document.getElementById(modalId);
     if (modal) modal.classList.remove('active');
 }
 
-// ============================================================================
-// FUNCIÓN: showAlert() / hideAlert()
-// Alertas globales del contenedor de autenticación
-// ============================================================================
 function showAlert(message, type) {
     const alert = document.getElementById('authAlert');
     if (!alert) return;
-    alert.textContent = message;
-    alert.className = `alert ${type}`;
-    alert.style.display = 'block';
+    alert.textContent = message; alert.className = 'alert ' + type; alert.style.display = 'block';
 }
-
 function hideAlert() {
     const alert = document.getElementById('authAlert');
     if (alert) alert.style.display = 'none';
 }
 
-// ============================================================================
-// INICIALIZACIÓN al cargar el DOM
-// ============================================================================
 document.addEventListener('DOMContentLoaded', initAuth);
-
-// Exposición global para onclick inline (regla A2: sin colisiones)
 window.closeModal = closeModal;
