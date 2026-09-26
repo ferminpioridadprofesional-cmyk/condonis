@@ -447,7 +447,7 @@ async function renderLevelsTab(content) {
                             <td>${l.id}</td>
                             <td><input type="text" class="lvl-name" value="${l.name}"></td>
                             <td><input type="number" class="lvl-rate" value="${l.rate_per_minute}" min="1"></td>
-                            <td>${Number(l.rate_per_minute) * 0.5}</td>
+                            <td>${(Number(l.rate_per_minute) * window.CND_MODEL_PCT).toFixed(1)}</td>
                             <td><button class="btn btn-secondary lvl-save">Guardar</button></td>
                         </tr>`).join('')}
                 </tbody>
