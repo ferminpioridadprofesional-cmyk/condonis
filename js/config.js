@@ -28,6 +28,9 @@ window.CND_CONFIG = {
     TICK_INTERVAL: 10000
 };
 
-window.CND_BUILD = 'FASE-6-V6.0-2026-09-24';
+// Modo de build: 'full' = PWA/web completa | 'store' = bundle nativo (V8)
+window.CND_BUILD_MODE = 'full';
+
+window.CND_BUILD = 'FASE-7-V7.0-2026-09-25';
 
 export { SUPABASE_URL, SUPABASE_ANON_KEY };
