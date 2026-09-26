@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>CONDONIS - Inicio</title>
+    <title>LinguaMeet - Inicio</title>
     <link rel="icon" type="image/svg+xml" href="assets/logo.svg">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=Space+Grotesk:wght@600;700&display=swap" rel="stylesheet">
     <style>
@@ -11,8 +11,9 @@
         body{font-family:'Inter',sans-serif;background:#0B0F17;color:#E2E8F0;min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:20px}
         h1,h2,h3{font-family:'Space Grotesk',sans-serif}
         .auth-container{width:100%;max-width:420px;background:rgba(15,23,42,.6);border:1px solid rgba(100,116,139,.3);border-radius:12px;padding:32px;backdrop-filter:blur(10px)}
-        .logo{text-align:center;margin-bottom:28px}
+        .logo{text-align:center;margin-bottom:24px}
         .logo h1{font-size:32px;background:linear-gradient(135deg,#00D4FF,#FF006E);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+        .logo p{color:#94A3B8;font-size:13px;margin-top:6px}
         .auth-tabs{display:flex;gap:8px;margin-bottom:20px;border-bottom:1px solid rgba(100,116,139,.3)}
         .auth-tab{flex:1;padding:12px;background:transparent;border:none;color:#94A3B8;font-size:16px;font-weight:600;cursor:pointer;border-bottom:2px solid transparent}
         .auth-tab.active{color:#00D4FF;border-bottom-color:#00D4FF}
@@ -44,7 +45,10 @@
 </head>
 <body>
     <div class="auth-container">
-        <div class="logo"><h1>CONDONIS</h1><p style="color:#94A3B8;margin-top:6px;">Plataforma de videollamadas 1:1 · Solo mayores de 18 años</p></div>
+        <div class="logo">
+            <h1 id="brandTitle">LinguaMeet</h1>
+            <p>Conoce personas por videollamada y practica idiomas · Solo +18</p>
+        </div>
         <div id="authAlert" class="alert"></div>
         <div class="auth-tabs">
             <button class="auth-tab active" data-tab="login">Iniciar Sesión</button>
@@ -62,40 +66,41 @@
             <div class="form-group"><label for="registerName">Nombre Completo</label><input type="text" id="registerName" required></div>
             <div class="form-group"><label for="registerEmail">Correo Electrónico</label><input type="email" id="registerEmail" required></div>
             <div class="form-group"><label for="registerPassword">Contraseña</label><input type="password" id="registerPassword" required minlength="6"></div>
-            <!-- Verificación de edad obligatoria (Apple 1.2.1 / Play) -->
-            <div class="form-group"><label for="registerBirth">Fecha de nacimiento (debes ser mayor de 18)</label><input type="date" id="registerBirth" required></div>
-            <div class="form-group"><label for="registerRole">Tipo de Cuenta</label>
-                <select id="registerRole"><option value="client">Cliente</option><option value="model">Modelo</option></select>
+            <div class="form-group"><label for="registerBirth">Fecha de nacimiento (debes ser +18)</label><input type="date" id="registerBirth" required></div>
+            <!-- Registro por género: Hombre -> miembro(cliente) | Mujer -> creadora(modelo) -->
+            <div class="form-group"><label for="registerGender">Soy</label>
+                <select id="registerGender">
+                    <option value="male">Hombre (quiero conocer creadoras)</option>
+                    <option value="female">Mujer (quiero ser creadora)</option>
+                </select>
             </div>
             <div class="checkbox-group"><input type="checkbox" id="acceptTerms" required>
-                <label for="acceptTerms">Acepto los <a href="terms.html" target="_blank">Términos y Condiciones</a> y la <a href="privacy.html" target="_blank">Política de Privacidad</a></label></div>
+                <label for="acceptTerms">Acepto los <a href="terms.html" target="_blank">Términos</a> y la <a href="privacy.html" target="_blank">Privacidad</a></label></div>
             <div class="checkbox-group" id="ageCheck" style="display:none;"><input type="checkbox" id="isAdult">
-                <label for="isAdult">Confirmo que soy mayor de 18 años</label></div>
+                <label for="isAdult">Confirmo que soy mayor de 18 y acepto el proceso de verificación de creadora</label></div>
             <button type="submit" class="btn" id="registerBtn">Crear Cuenta</button>
         </form>
 
         <div class="legal-links">
-            <a href="terms.html" target="_blank">Términos</a>·
-            <a href="privacy.html" target="_blank">Privacidad</a>·
-            <a href="mailto:soporte@condonis.com">Soporte</a>
+            <a href="terms.html" target="_blank">Términos</a>·<a href="privacy.html" target="_blank">Privacidad</a>·<a href="mailto:soporte@condonis.com">Soporte</a>
         </div>
     </div>
 
-    <!-- Modales TyC / Privacidad (resumen; versión completa en terms.html / privacy.html) -->
     <div id="termsModal" class="modal"><div class="modal-content">
         <h2>Términos y Condiciones</h2>
-        <p>Resumen. La versión completa y vinculante está en <a href="terms.html" target="_blank" style="color:#00D4FF;">terms.html</a>.</p>
-        <p>Servicio exclusivo para mayores de 18 años. Las modelos pasan verificación KYC. Prohibido contenido ilegal, explotación de menores y compartir datos de contacto o pago en el chat. Los tokens y regalos son bienes virtuales sin valor fuera de la plataforma y no reembolsables. Puedes eliminar tu cuenta en cualquier momento.</p>
+        <p>Resumen. Versión completa en <a href="terms.html" target="_blank" style="color:#00D4FF;">terms.html</a>.</p>
+        <p>Servicio exclusivo +18. Las creadoras pasan verificación KYC. Prohibido contenido ilegal y compartir datos de contacto/pago en el chat. Tokens y regalos son bienes virtuales no reembolsables. Puedes eliminar tu cuenta cuando quieras.</p>
         <button class="modal-close" onclick="closeModal('termsModal')">Cerrar</button>
     </div></div>
     <div id="privacyModal" class="modal"><div class="modal-content">
         <h2>Política de Privacidad</h2>
-        <p>Resumen. La versión completa está en <a href="privacy.html" target="_blank" style="color:#00D4FF;">privacy.html</a>.</p>
-        <p>Recopilamos nombre, correo, fecha de nacimiento y, para modelos, documentos KYC. El chat se modera automáticamente para bloquear datos personales. No vendemos tus datos. Puedes solicitar acceso, rectificación o eliminación.</p>
+        <p>Resumen. Versión completa en <a href="privacy.html" target="_blank" style="color:#00D4FF;">privacy.html</a>.</p>
+        <p>Recopilamos nombre, correo, fecha de nacimiento y, para creadoras, documentos KYC. El chat se modera automáticamente. No vendemos tus datos.</p>
         <button class="modal-close" onclick="closeModal('privacyModal')">Cerrar</button>
     </div></div>
 
     <script type="module" src="js/config.js"></script>
+    <script type="module" src="js/i18n.js"></script>
     <script type="module" src="js/auth.js"></script>
 </body>
 </html>
