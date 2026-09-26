@@ -2168,3 +2168,24 @@ REPLICA IDENTITY siempre van DESPUÉS del CREATE TABLE correspondiente
 6. Cliente envía oferta → modelo la ve, acepta → cobro y ganancia correctos.
 7. Modelo solicita retiro → admin o agencia lo aprueba/rechaza correctamente.
 8. Dueño de agencia ve su panel con reporte y retiros de sus modelos.
+
+9. ---
+
+## V6.1 - Columnas created_at faltantes (400 Bad Request)
+**Fecha:** 25 de septiembre de 2026  
+**Versión:** FASE-6-V6.1-2026-09-25
+
+### Problema:
+- GET agency_payments y model_payouts devolvían 400 Bad Request porque el
+  panel ordenaba por created_at y esas tablas no tenían esa columna
+  (anti-patrón A4: consultar columnas inexistentes).
+
+### Solución:
+- ALTER TABLE ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ DEFAULT NOW()
+  en agency_payments y model_payouts. Sin cambios de código JS.
+
+### Archivos tocados: ninguno (solo SQL curativo).
+
+### Checklist:
+1. SQL V6.1 ejecutado → la consulta de verificación devuelve 2 filas.
+2. Admin → Agencias y Retiros cargan sin errores 400 en consola.
