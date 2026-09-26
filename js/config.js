@@ -1,5 +1,5 @@
 // ============================================================================
-// CONDONIS - CONFIGURACIÓN GLOBAL
+// CONDONIS - CONFIGURACIÓN GLOBAL (V8.2)
 // ============================================================================
 
 const SUPABASE_URL = 'https://xvnefjjufadwkhzavgni.supabase.co';
@@ -17,14 +17,22 @@ window.CND_ICE_SERVERS = [
 ];
 
 window.CND_CONFIG = {
-    APP_NAME: 'CONDONIS', COMMISSION_PCT: 50, MIN_RECHARGE: 10, KYC_REQUIRED: true,
+    APP_NAME: 'LinguaMeet', COMMISSION_PCT: 72, MIN_RECHARGE: 10, KYC_REQUIRED: true,
     HEARTBEAT_INTERVAL: 20000, PRESENCE_TIMEOUT: 90000, CALL_TIMEOUT: 15000,
     DEBOUNCE_DELAY: 150, TICK_INTERVAL: 10000
 };
 
-window.CND_BUILD_MODE = 'full';   // 'full' PWA/web | 'store' bundle nativo
-window.CND_REBRAND = false;       // true => UI dice "Creadores"
+// Porcentaje que gana la creadora (28%). La app retiene el resto (72%).
+window.CND_MODEL_PCT = 0.28;
+
+// Nombre público de la app (neutro, social/idiomas). Cambiable sin tocar código.
+window.CND_APP_NAME = 'LinguaMeet';
+
+// Rebrand de UI: modelo->creadora, cliente->miembro (enmascaramiento)
+window.CND_REBRAND = true;
+
+window.CND_BUILD_MODE = 'full';
 window.CND_LOCALE = 'es';
-window.CND_BUILD = 'FASE-8-V8.1-2026-09-25';
+window.CND_BUILD = 'FASE-8-V8.2-2026-09-25';
 
 export { SUPABASE_URL, SUPABASE_ANON_KEY };
