@@ -2189,3 +2189,39 @@ REPLICA IDENTITY siempre van DESPUÉS del CREATE TABLE correspondiente
 ### Checklist:
 1. SQL V6.1 ejecutado → la consulta de verificación devuelve 2 filas.
 2. Admin → Agencias y Retiros cargan sin errores 400 en consola.
+3. ---
+
+## V7.0 - Cumplimiento de tiendas (edad, reportes, soporte, legales standalone)
+**Fecha:** 25 de septiembre de 2026  
+**Versión:** FASE-7-V7.0-2026-09-25
+
+### Alcance:
+- Verificación de edad obligatoria: campo fecha de nacimiento en registro,
+  validación >=18 en cliente y columna profiles.birth_date.
+- Cuenta demo para revisores de tiendas: reviewer@condonis.com / Review2026!.
+- Sistema de reportes de usuario/contenido (user_reports + RPC report_user +
+  alerta admin + tab Reportes en el panel).
+- Contacto de soporte visible en Perfil.
+- Botón Reportar en el modal de perfil de modelo.
+- Páginas legales standalone públicas: terms.html y privacy.html (redactadas
+  completas, sin placeholders), enlazadas desde index.html.
+- Flag de modo de build window.CND_BUILD_MODE ('full' | 'store') preparado
+  para el build dual de V8.
+
+### Archivos:
+- SQL V7.0 (birth_date, user_reports, report_user, cuenta demo, verify_schema)
+- js/compliance.js (NUEVO)
+- index.html (campo fecha de nacimiento + enlaces legales)
+- js/auth.js (validación 18+ y envío de birth_date)
+- terms.html, privacy.html (NUEVOS, texto legal completo)
+- js/config.js (build V7.0 + CND_BUILD_MODE)
+- app.html (script compliance.js)
+
+### Checklist:
+1. SQL V7.0 → Success; verify_schema() todo true.
+2. Registro con fecha <18 años → rechazado.
+3. Registro válido guarda birth_date en profiles.
+4. Perfil de modelo muestra botón Reportar; el admin lo ve en tab Reportes.
+5. Perfil propio muestra correo de soporte.
+6. terms.html y privacy.html abren como páginas públicas sin login.
+7. Login demo revisor funciona: reviewer@condonis.com / Review2026!.
