@@ -2280,3 +2280,39 @@ REPLICA IDENTITY siempre van DESPUÉS del CREATE TABLE correspondiente
 3. Como cliente, el perfil de una modelo muestra SIEMPRE el bloque
    "Ofertar por un show" con selector de actividad y descripción.
 4. Enviar oferta -> la modelo la ve en "Ofertas de show" y puede aceptar.
+
+5. ---
+
+## V8.2 - Enmascaramiento total + economía 28% + registro por género
+**Fecha:** 25 de septiembre de 2026  
+**Versión:** FASE-8-V8.2-2026-09-25
+
+### Cambios:
+1. Economía: la creadora gana 28% (la app retiene 72%). El reparto se lee de
+   app_settings.commission_pct (=72) en todas las RPCs (get_active_models,
+   start_call, send_gift, send_token_tip, respond_show_offer). UI alineada
+   vía window.CND_MODEL_PCT=0.28.
+2. Nombre público neutro configurable (CND_APP_NAME, default 'LinguaMeet'),
+   posicionado como app social de videollamadas + idiomas. Se aplica a
+   document.title y headers sin tocar HTML.
+3. Registro por género: Hombre -> rol client (miembro); Mujer -> rol model
+   (creadora). El checkbox KYC/+18 reforzado aplica a mujeres.
+4. Rebrand de UI activado por defecto (CND_REBRAND=true): modelo->creadora,
+   cliente->miembro, aplicado también a renders dinámicos vía
+   MutationObserver.
+5. index.html carga i18n.js para branding en la página de acceso.
+
+### Archivos: SQL V8.2, config.js, index.html, auth.js, i18n.js +
+reemplazos de constante en models.js/calls.js/admin.js.
+
+### Nota de marca: 'CONDONIS' desaconsejado para stores (connotación sexual
+y debilidad de marca). Validar el nombre elegido en USPTO/EUIPO/WIPO antes
+de publicar.
+
+### Checklist:
+1. SQL V8.2 ejecutado; app_settings.commission_pct = 72.
+2. Registro como Mujer -> crea rol model; como Hombre -> rol client.
+3. UI pública dice 'Creadoras/Miembros' y el nombre de app es LinguaMeet.
+4. Una llamada/regalo/solicitud acredita a la creadora el 28% (ver
+   token_transactions y tokens_retained).
+5. La modelo ve su 28% en nivel, regalos y solicitudes.
