@@ -2225,3 +2225,32 @@ REPLICA IDENTITY siempre van DESPUÉS del CREATE TABLE correspondiente
 5. Perfil propio muestra correo de soporte.
 6. terms.html y privacy.html abren como páginas públicas sin login.
 7. Login demo revisor funciona: reviewer@condonis.com / Review2026!.
+
+8. ---
+
+## V8.0 - Multi-idioma, traducción de chat y modo tienda
+**Fecha:** 25 de septiembre de 2026  
+**Versión:** FASE-8-V8.0-2026-09-25
+
+### Añadido:
+- js/i18n.js: interfaz es/en/pt con detección del dispositivo y selector en
+  el header; traducción automática del chat en llamada (MyMemory, gratis)
+  con selector de "idioma de la otra persona" y toggle; rebrand opcional
+  "modelo"->"creador" vía CND_REBRAND (solo nodos de texto).
+- js/store.js: gates del bundle nativo (modo 'store'): oculta retiros,
+  agencias y ofertas; redirige la recarga de tokens al puente IAP nativo.
+- config.js: flags CND_BUILD_MODE, CND_REBRAND, CND_LOCALE; build V8.0.
+
+### Decisión de producto registrada:
+- Se MANTIENEN llamadas 1:1, regalos y tokens en la app de tiendas, usando
+  Google Play Billing / Apple IAP para recargas (obligatorio para bienes
+  digitales). Los pagos/retiros a modelos quedan EXTERNOS y ocultos del
+  bundle nativo (portal web/PWA), lo cual es conforme a políticas.
+
+### Checklist:
+1. Creados i18n.js y store.js; scripts añadidos en app.html; config V8.0.
+2. Cambiar idioma en el header -> UI estática cambia a EN/PT.
+3. En llamada, configurar "idioma de la otra persona" -> los mensajes
+   entrantes aparecen con su traducción debajo.
+4. Con CND_REBRAND=true la UI muestra "Creadores" en vez de "Modelos".
+5. Con CND_BUILD_MODE='store' desaparecen retiros/agencias/ofertas.
