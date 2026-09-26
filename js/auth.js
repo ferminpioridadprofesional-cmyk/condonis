@@ -1,17 +1,24 @@
 // ============================================================================
-// CONDONIS - AUTH: login/registro con verificación de edad (birth_date)
+// CONDONIS - AUTH: registro por género (Hombre->cliente, Mujer->modelo)
+// y validación de edad. Branding desde CND_APP_NAME.
 // ============================================================================
 
 function initAuth() {
+    applyBrand();
     setupAuthTabs(); setupLoginForm(); setupRegisterForm();
     setupResendConfirmation(); setupModals(); checkExistingSession();
 }
 
+// Aplica el nombre público de la app al título y al logo
+function applyBrand() {
+    const name = window.CND_APP_NAME || 'LinguaMeet';
+    document.title = name + ' - Inicio';
+    const h = document.getElementById('brandTitle');
+    if (h) h.textContent = name;
+}
+
 async function checkExistingSession() {
-    try {
-        const { data: { session } } = await window.supabase.auth.getSession();
-        if (session) window.location.href = 'app.html';
-    } catch (e) {}
+    try { const { data: { session } } = await window.supabase.auth.getSession(); if (session) window.location.href = 'app.html'; } catch (e) {}
 }
 
 function switchTab(t) {
@@ -37,8 +44,7 @@ function setupLoginForm() {
             setTimeout(() => window.location.href = 'app.html', 800);
         } catch (err) {
             showAlert(String(err.message).includes('Invalid') ? 'Credenciales inválidas.' :
-                        String(err.message).includes('not confirmed') ? 'Correo sin confirmar. Usa Reenviar enlace.' :
-                        err.message, 'error');
+                        String(err.message).includes('not confirmed') ? 'Correo sin confirmar. Usa Reenviar enlace.' : err.message, 'error');
             b.disabled = false; b.textContent = 'Iniciar Sesión';
         }
     });
@@ -50,35 +56,30 @@ function setupResendConfirmation() {
         e.preventDefault();
         const email = document.getElementById('loginEmail').value.trim();
         if (!email) { showAlert('Escribe tu correo arriba.', 'error'); return; }
-        try {
-            const { error } = await window.supabase.auth.resend({ type: 'signup', email });
-            if (error) throw error;
-            showAlert('Enlace reenviado.', 'success');
-        } catch (e2) { showAlert('No se pudo reenviar.', 'error'); }
+        try { const { error } = await window.supabase.auth.resend({ type: 'signup', email }); if (error) throw error;
+            showAlert('Enlace reenviado.', 'success'); } catch (e2) { showAlert('No se pudo reenviar.', 'error'); }
     });
 }
 
-// Valida mayoría de edad a partir de la fecha de nacimiento
-function isAdult(birthISO) {
-    if (!birthISO) return false;
-    const b = new Date(birthISO);
-    if (isNaN(b)) return false;
-    const today = new Date();
-    let age = today.getFullYear() - b.getFullYear();
-    const m = today.getMonth() - b.getMonth();
-    if (m < 0 || (m === 0 && today.getDate() < b.getDate())) age--;
-    return age >= 18;
+function isAdult(b) {
+    if (!b) return false;
+    const d = new Date(b); if (isNaN(d)) return false;
+    const t = new Date(); let a = t.getFullYear() - d.getFullYear();
+    const m = t.getMonth() - d.getMonth();
+    if (m < 0 || (m === 0 && t.getDate() < d.getDate())) a--;
+    return a >= 18;
 }
 
 function setupRegisterForm() {
     const f = document.getElementById('registerForm'); if (!f) return;
-    const role = document.getElementById('registerRole');
+    const gender = document.getElementById('registerGender');
     const ageCheck = document.getElementById('ageCheck');
 
-    role.addEventListener('change', () => {
-        const isModel = role.value === 'model';
-        ageCheck.style.display = isModel ? 'flex' : 'none';
-        document.getElementById('isAdult').required = isModel;
+    // El checkbox KYC/+18 reforzado solo aplica a mujeres (creadoras)
+    gender.addEventListener('change', () => {
+        const fem = gender.value === 'female';
+        ageCheck.style.display = fem ? 'flex' : 'none';
+        document.getElementById('isAdult').required = fem;
     });
 
     f.addEventListener('submit', async (e) => {
@@ -87,28 +88,27 @@ function setupRegisterForm() {
         const email = document.getElementById('registerEmail').value.trim();
         const pass = document.getElementById('registerPassword').value;
         const birth = document.getElementById('registerBirth').value;
-        const rol = role.value;
+        const gen = gender.value;
         const terms = document.getElementById('acceptTerms').checked;
         const adult = document.getElementById('isAdult').checked;
         const b = document.getElementById('registerBtn');
 
+        // Mapeo de género a rol interno (sin cambiar la base de datos)
+        const role = (gen === 'female') ? 'model' : 'client';
+
         if (!terms) { showAlert('Debes aceptar los Términos.', 'error'); return; }
-        if (!isAdult(birth)) { showAlert('Debes ser mayor de 18 años para registrarte.', 'error'); return; }
-        if (rol === 'model' && !adult) { showAlert('Confirma que eres mayor de 18.', 'error'); return; }
+        if (!isAdult(birth)) { showAlert('Debes ser mayor de 18 años.', 'error'); return; }
+        if (role === 'model' && !adult) { showAlert('Confirma que eres +18 y aceptas la verificación de creadora.', 'error'); return; }
 
         b.disabled = true; b.innerHTML = '<span class="spinner"></span>';
         try {
             const confirmUrl = new URL('confirm.html', window.location.href).toString();
             const { data, error } = await window.supabase.auth.signUp({
                 email, password: pass,
-                options: { data: { full_name: name, role: rol, birth_date: birth }, emailRedirectTo: confirmUrl }
+                options: { data: { full_name: name, role, birth_date: birth }, emailRedirectTo: confirmUrl }
             });
             if (error) throw error;
-
-            // Guardar birth_date en profiles (el trigger crea el perfil)
-            if (data.user) {
-                await window.supabase.from('profiles').update({ birth_date: birth }).eq('id', data.user.id);
-            }
+            if (data.user) await window.supabase.from('profiles').update({ birth_date: birth }).eq('id', data.user.id);
 
             if (data.user && data.user.identities && data.user.identities.length === 0) {
                 showAlert('Correo ya registrado. Inicia sesión.', 'error');
@@ -131,7 +131,6 @@ function setupModals() {
     const p = document.getElementById('showPrivacy');
     if (p) p.addEventListener('click', (e) => { e.preventDefault(); document.getElementById('privacyModal').classList.add('active'); });
 }
-
 function closeModal(id) { const m = document.getElementById(id); if (m) m.classList.remove('active'); }
 function showAlert(m, t) { const a = document.getElementById('authAlert'); if (!a) return; a.textContent = m; a.className = 'alert ' + t; a.style.display = 'block'; }
 function hideAlert() { const a = document.getElementById('authAlert'); if (a) a.style.display = 'none'; }
