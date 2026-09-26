@@ -515,7 +515,7 @@ async function handleSignal(msg) {
         const g = (await loadGifts()).find(x => x.id === msg.giftId);
         if (g) playGiftFx(g.asset);
     } else if (msg.type === 'tip') {
-        if (!callState.isCaller) window.showToast('Solicitud aceptada: +' + (msg.amount * 0.5) + ' tokens', 'success');
+        if (!callState.isCaller)    window.showToast('Solicitud aceptada: +' + (msg.amount * window.CND_MODEL_PCT) + ' tokens', 'success');
     } else if (msg.type === 'request-denied') {
         window.showToast('La solicitud fue rechazada', 'info');
     }
