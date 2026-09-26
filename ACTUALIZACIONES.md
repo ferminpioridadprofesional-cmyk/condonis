@@ -2254,3 +2254,29 @@ REPLICA IDENTITY siempre van DESPUÉS del CREATE TABLE correspondiente
    entrantes aparecen con su traducción debajo.
 4. Con CND_REBRAND=true la UI muestra "Creadores" en vez de "Modelos".
 5. Con CND_BUILD_MODE='store' desaparecen retiros/agencias/ofertas.
+6. ---
+
+## V8.1 - Sin retiros en app de modelo + oferta de show siempre visible
+**Fecha:** 25 de septiembre de 2026  
+**Versión:** FASE-8-V8.1-2026-09-25
+
+### Cambios:
+1. Se elimina el bloque/card "Mis ganancias / Solicitar retiro" del home de la
+   modelo. Los retiros los gestiona la agencia/admin de forma externa (sus
+   paneles se mantienen). La RPC request_model_payout queda sin UI de modelo.
+2. El header muestra para la MODELO sus ganancias acumuladas
+   (tokens_retained) con el mismo formato que el saldo de los clientes.
+3. El botón "Ofertar por un show" aparece SIEMPRE para clientes (antes
+   dependía del nivel). Se añaden categorías de actividad (Baile,
+   Conversación, Cosplay, Juego/Roleplay, Sesión de fotos, Otro) +
+   descripción libre + monto + minutos.
+
+### Archivos: js/core.js, js/models.js, js/config.js (build V8.1).
+### Sin cambios: SQL, app.html, resto de módulos.
+
+### Checklist:
+1. Home de modelo: ya NO aparece "Solicitar retiro" ni card de ganancias.
+2. Header de la modelo muestra sus ganancias acumuladas como "X tokens".
+3. Como cliente, el perfil de una modelo muestra SIEMPRE el bloque
+   "Ofertar por un show" con selector de actividad y descripción.
+4. Enviar oferta -> la modelo la ve en "Ofertas de show" y puede aceptar.
