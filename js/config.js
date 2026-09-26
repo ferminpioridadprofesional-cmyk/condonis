@@ -28,9 +28,15 @@ window.CND_CONFIG = {
     TICK_INTERVAL: 10000
 };
 
-// Modo de build: 'full' = PWA/web completa | 'store' = bundle nativo (V8)
+// 'full' = PWA/web completa | 'store' = bundle nativo (oculta retiros/agencias)
 window.CND_BUILD_MODE = 'full';
 
-window.CND_BUILD = 'FASE-7-V7.0-2026-09-25';
+// Rebrand opcional: true => la UI dice "Creadores" en vez de "Modelos"
+window.CND_REBRAND = false;
+
+// Idioma por defecto (i18n lo sobreescribe con el del dispositivo)
+window.CND_LOCALE = 'es';
+
+window.CND_BUILD = 'FASE-8-V8.0-2026-09-25';
 
 export { SUPABASE_URL, SUPABASE_ANON_KEY };
