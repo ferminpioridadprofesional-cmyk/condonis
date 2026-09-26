@@ -123,7 +123,7 @@ async function renderModelHome() {
 
     const kycOk = profile.kyc_status === 'approved';
     const level = ownDetails && ownDetails.level_id ? await fetchLevel(ownDetails.level_id) : null;
-    const modelRate = level ? Number(level.rate_per_minute) * 0.5 : 0;
+    const modelRate = level ? Number(level.rate_per_minute) * window.CND_MODEL_PCT : 0;
 
     let kycBlock = '';
     if (kycOk) kycBlock = `<div class="card kyc-card kyc-ok"><div class="card-header"><span class="card-title">Verificacion KYC</span><span class="kyc-badge kyc-approved">Aprobada</span></div><button class="btn btn-secondary" id="btnViewKycDocs">Ver mis documentos</button></div>`;
