@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data: blob: https://*.supabase.co; media-src 'self' blob:; connect-src 'self' https://*.supabase.co wss://*.supabase.co https://api.mymemory.translated.net; worker-src 'self' blob:; frame-src 'none'; object-src 'none'; base-uri 'self'; form-action 'self';">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data: blob: https://*.supabase.co; media-src 'self' blob:; connect-src 'self' https://*.supabase.co wss://*.supabase.co https://api.mymemory.translated.net https://translate.googleapis.com; worker-src 'self' blob:; frame-src 'none'; object-src 'none'; base-uri 'self'; form-action 'self';">
     <title>LinguaMeet</title>
     <link rel="icon" type="image/svg+xml" href="assets/logo.svg">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=Space+Grotesk:wght@600;700&display=swap" rel="stylesheet">
@@ -50,17 +50,14 @@
         .slider::before{content:"";position:absolute;width:22px;height:22px;left:3px;top:3px;background:#E2E8F0;border-radius:50%;transition:.3s}
         .switch input:checked + .slider{background:#22C55E}
         .switch input:checked + .slider::before{transform:translateX(24px)}
-        .switch input:focus-visible + .slider{outline:2px solid #00D4FF}
         .avail-state{font-size:13px;font-weight:700;padding:4px 10px;border-radius:12px}
         .avail-state.on{background:rgba(34,197,94,.2);color:#86EFAC}
         .avail-state.off{background:rgba(239,68,68,.2);color:#FCA5A5}
         .hint{color:#94A3B8;font-size:13px;margin-top:8px;line-height:1.5}
-        .kyc-warn{color:#FCD34D}
         .empty-note{color:#94A3B8;margin-top:20px}
         .form-row{margin-bottom:12px}
         .form-row label{display:block;font-size:13px;color:#CBD5E1;margin-bottom:6px;font-weight:600}
         .form-row input,.form-row textarea,.form-row select{width:100%;padding:10px;background:rgba(30,41,59,.5);border:1px solid rgba(100,116,139,.3);border-radius:8px;color:#E2E8F0;font-size:14px;font-family:inherit}
-        .form-row input:focus,.form-row textarea:focus,.form-row select:focus{outline:none;border-color:#00D4FF}
         .gallery-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(110px,1fr));gap:10px;margin-top:12px}
         .gallery-item{position:relative;aspect-ratio:1;border-radius:8px;overflow:hidden;border:1px solid rgba(100,116,139,.3)}
         .gallery-item img{width:100%;height:100%;object-fit:cover;display:block}
@@ -103,7 +100,6 @@
         .levels-table th,.levels-table td{padding:10px;border-bottom:1px solid rgba(100,116,139,.2);font-size:14px}
         .levels-table th{text-align:left;color:#94A3B8;font-weight:600;font-size:12px;text-transform:uppercase}
         .levels-table input{width:100%;padding:8px;background:rgba(30,41,59,.5);border:1px solid rgba(100,116,139,.3);border-radius:6px;color:#E2E8F0;font-size:14px}
-        .levels-table input:focus{outline:none;border-color:#00D4FF}
         .pkg-row{display:flex;gap:10px;margin-top:12px;flex-wrap:wrap}
         .pkg-row .btn{flex:1;min-width:100px}
         .user-row .btn{margin-top:8px}
@@ -111,10 +107,7 @@
         .call-overlay.active{display:block}
         .call-overlay video#remoteVideo{width:100%;height:100%;object-fit:contain;background:#000}
         .local-video{position:absolute;top:16px;right:16px;width:120px;height:160px;object-fit:cover;border-radius:12px;border:1px solid rgba(100,116,139,.5);background:#0B0F17;z-index:2}
-        .call-hud{position:absolute;bottom:24px;left:0;right:0;display:flex;align-items:center;justify-content:center;gap:20px;z-index:3}
-        .call-hud .hud-text{background:rgba(11,15,23,.7);padding:8px 14px;border-radius:10px;font-size:14px;font-weight:600}
-        .hangup-btn{width:64px;height:64px;border-radius:50%;border:none;background:#EF4444;color:#fff;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:transform .2s}
-        .hangup-btn:hover{transform:scale(1.08)}
+        .hangup-btn{width:64px;height:64px;border-radius:50%;border:none;background:#EF4444;color:#fff;cursor:pointer;display:flex;align-items:center;justify-content:center}
         .hangup-btn svg{width:28px;height:28px}
         .call-connecting{position:absolute;inset:0;display:none;flex-direction:column;align-items:center;justify-content:center;gap:16px;background:rgba(0,0,0,.75);z-index:4}
         .call-connecting p{color:#E2E8F0;font-weight:600}
@@ -176,7 +169,6 @@
         </section>
     </main>
 
-    <!-- Modal único reutilizable (perfil / KYC / revisión / reportes) -->
     <div id="modelModal" class="modal-overlay" role="dialog" aria-modal="true" aria-label="Ventana de detalle">
         <div class="modal-card">
             <button class="modal-x" id="modelModalClose" aria-label="Cerrar">
@@ -186,27 +178,22 @@
         </div>
     </div>
 
-    <!-- Overlay de videollamada activa -->
+    <!-- Overlay de llamada: SIN callTimer/callCost duplicados (los crea calls.js) -->
     <div id="callOverlay" class="call-overlay">
         <video id="remoteVideo" autoplay playsinline></video>
         <video id="localVideo" class="local-video" autoplay playsinline muted></video>
-        <div class="call-hud">
-            <div class="hud-text" id="callTimer">00:00</div>
-            <div class="hud-text" id="callCost"></div>
-            <button id="hangupBtn" class="hangup-btn" aria-label="Colgar llamada">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <path d="M10.68 13.31a16 16 0 0 0 3.41 2.6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91"></path>
-                    <line x1="23" y1="1" x2="1" y2="23"></line>
-                </svg>
-            </button>
-        </div>
+        <button id="hangupBtn" class="hangup-btn" style="display:none" aria-label="Colgar llamada">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M10.68 13.31a16 16 0 0 0 3.41 2.6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91"></path>
+                <line x1="23" y1="1" x2="1" y2="23"></line>
+            </svg>
+        </button>
         <div id="callConnecting" class="call-connecting">
             <div class="ring"></div>
             <p>Conectando llamada...</p>
         </div>
     </div>
 
-    <!-- Modal de llamada entrante -->
     <div id="incomingModal" class="modal-overlay" role="dialog" aria-modal="true" aria-label="Llamada entrante">
         <div class="modal-card incoming-card">
             <div class="incoming-pulse"></div>
@@ -236,7 +223,6 @@
 
     <div class="toast-container" id="toastContainer"></div>
 
-    <!-- Scripts: security.js primero; luego el resto en orden (regla A1) -->
     <script type="module" src="js/security.js"></script>
     <script type="module" src="js/config.js"></script>
     <script type="module" src="js/core.js"></script>
