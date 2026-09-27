@@ -2316,3 +2316,32 @@ de publicar.
 4. Una llamada/regalo/solicitud acredita a la creadora el 28% (ver
    token_transactions y tokens_retained).
 5. La modelo ve su 28% en nivel, regalos y solicitudes.
+
+6. ---
+
+## V10.1 - Precios accesibles + login neutro (anti-rechazo) + pulido
+**Fecha:** 26 de septiembre de 2026  
+**Versión:** FASE-10-V10.1-2026-09-26
+
+### Cambios:
+1. Regalos a escala 1..20 tokens y niveles a 6..28 tokens/min (antes hasta
+   100 y 200). Editables por el admin en "Niveles y tarifas".
+2. Login/registro SIN lenguaje "+18"/"creadoras"/"modelos": se presenta como
+   red social de videollamadas e idiomas. El control de mayoría de edad se
+   mantiene INTERNO y silencioso por fecha de nacimiento (obligatorio por ley
+   y por políticas de tiendas; quitarlo causaría rechazo y riesgo legal).
+3. Checkbox de verificación con texto neutro ("verificación de identidad").
+4. Admin: columna "gana" usa CND_MODEL_PCT (28%) y no 50%.
+5. Regalos para la creadora mostrados con 1 decimal.
+6. Tras colgar, se refresca el saldo del header (loadUserProfile).
+
+### Archivos: SQL V10.1; index.html; js/auth.js; edits de 1 línea en
+js/admin.js y js/calls.js (x2).
+
+### Checklist:
+1. SQL V10.1 ejecutado; regalos 1..20 y niveles 6..28.
+2. Login sin "+18" ni "creadoras"; registro pide fecha de nacimiento y
+   rechaza menores sin carteles sensibles.
+3. Admin: "Niveles" muestra el reparto al 28%.
+4. En llamada, regalos con precios bajos; la creadora ve su 28% con 1 decimal.
+5. Al colgar, el header refleja el saldo/ganancia actualizado.
