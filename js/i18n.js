@@ -1,6 +1,7 @@
 // ============================================================================
-// CONDONIS/LinguaMeet - I18N: multi-idioma + traducción de chat + branding.
-// V10-FIX: applyBrand también reescribe los mailto: al correo de soporte.
+// CONDONIS/LinguaMeet - I18N: multi-idioma + traducción AUTO del chat.
+// V10.2: el selector de idioma de la otra persona incluye AUTO (detecta el
+// idioma del mensaje y lo traduce al tuyo). Usa Google gtx (auto) o MyMemory.
 // ============================================================================
 
 const I18N_DICT = {
@@ -14,7 +15,6 @@ const I18N_DICT = {
           home_title:'Criadoras Online', home_sub:'Conecte-se com criadoras disponíveis',
           profile_title:'Meu Perfil', history_title:'Tokens e Movimentos', admin_title:'Painel Admin', lang_label:'Idioma' }
 };
-
 const I18N_SELECTORS = [
     ['.nav-item[data-section="sectionHome"] .nav-label','nav_home'],
     ['.nav-item[data-section="sectionHistory"] .nav-label','nav_tokens'],
@@ -25,14 +25,11 @@ const I18N_SELECTORS = [
     ['#sectionProfile h2','profile_title'], ['#sectionHistory h2','history_title'], ['#sectionAdmin h2','admin_title']
 ];
 
-let locale='es', remoteLang='es', autoTranslateIn=true, rebrandObserver=null;
+let locale='es', remoteLang='auto', autoTranslateIn=true;
 
 document.addEventListener('DOMContentLoaded', () => {
     locale = detectLocale();
-    applyBrand();
-    applyUI();
-    injectLangSelector();
-    watchChatForTranslation();
+    applyBrand(); applyUI(); injectLangSelector(); watchChatForTranslation();
     if (window.CND_REBRAND) startRebrandObserver();
 });
 
@@ -44,7 +41,6 @@ function detectLocale() {
 function t(k){ return (I18N_DICT[locale]&&I18N_DICT[locale][k]) || I18N_DICT.es[k] || k; }
 function setLocale(l){ if(!I18N_DICT[l])return; locale=l; localStorage.setItem('cnd_locale',l); applyUI(); if(window.CND_REBRAND) applyRebrand(); }
 
-// Branding: nombre público + correo de soporte en todos los mailto:
 function applyBrand() {
     const name = window.CND_APP_NAME || 'LinguaMeet';
     const support = window.CND_SUPPORT_EMAIL || 'soporte@linguameet.com';
@@ -53,13 +49,10 @@ function applyBrand() {
     const logoH = document.getElementById('brandTitle'); if (logoH) logoH.textContent = name;
     document.querySelectorAll('a[href^="mailto:"]').forEach(a => { a.href = 'mailto:' + support; });
 }
-
 function applyUI() {
     I18N_SELECTORS.forEach(([sel,key]) => document.querySelectorAll(sel).forEach(el => el.textContent = t(key)));
     if (window.CND_REBRAND) applyRebrand();
 }
-
-// Rebrand seguro: solo nodos de TEXTO. modelo->creadora, cliente->miembro.
 function applyRebrand() {
     const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT, null);
     const nodes=[]; while(walker.nextNode()) nodes.push(walker.currentNode);
@@ -72,16 +65,11 @@ function applyRebrand() {
         if (s !== n.nodeValue) n.nodeValue = s;
     });
 }
-
 function startRebrandObserver() {
     let timer=null;
-    rebrandObserver = new MutationObserver(() => {
-        if (timer) clearTimeout(timer);
-        timer = setTimeout(() => applyRebrand(), 250);
-    });
-    rebrandObserver.observe(document.body, { childList:true, subtree:true });
+    new MutationObserver(() => { if (timer) clearTimeout(timer); timer = setTimeout(() => applyRebrand(), 250); })
+        .observe(document.body, { childList:true, subtree:true });
 }
-
 function injectLangSelector() {
     const info = document.querySelector('.user-info');
     if (!info || document.getElementById('langSelect')) return;
@@ -93,13 +81,25 @@ function injectLangSelector() {
     info.insertBefore(s, info.firstChild);
 }
 
+// Traducción: from='auto' usa Google gtx con detección; si no, MyMemory.
 async function CND_translate(text, from, to) {
-    if (!text || from===to) return text;
+    if (!text) return text;
     try {
-        const r = await fetch('https://api.mymemory.translated.net/get?q='+encodeURIComponent(text)+'&langpair='+from+'|'+to);
+        if (from === 'auto') {
+            const url = 'https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&tl=' + to + '&dt=t&q=' + encodeURIComponent(text);
+            const r = await fetch(url);
+            const j = await r.json();
+            const detected = j && j[2];
+            const out = j && j[0] ? j[0].map(seg => seg[0]).join('') : null;
+            if (out && detected && detected !== to) return out;   // solo si el idioma difiere del propio
+            return text;
+        }
+        if (from === to) return text;
+        const url = 'https://api.mymemory.translated.net/get?q=' + encodeURIComponent(text) + '&langpair=' + from + '|' + to;
+        const r = await fetch(url);
         const j = await r.json();
         return (j && j.responseData && j.responseData.translatedText) || text;
-    } catch(e){ return text; }
+    } catch (e) { return text; }
 }
 window.CND_translate = CND_translate;
 
@@ -118,10 +118,10 @@ function injectChatControls(head) {
     row.style.cssText='display:flex;gap:6px;align-items:center;padding:6px 10px;border-bottom:1px solid rgba(100,116,139,.3);';
     row.innerHTML = `<span style="font-size:11px;color:#94A3B8;">Idioma de la otra persona:</span>
         <select id="chatRemoteLang" style="background:rgba(30,41,59,.6);color:#E2E8F0;border:1px solid rgba(100,116,139,.4);border-radius:6px;font-size:12px;padding:3px;">
-        <option value="es">ES</option><option value="en">EN</option><option value="pt">PT</option></select>
+        <option value="auto">AUTO</option><option value="en">EN</option><option value="pt">PT</option><option value="es">ES</option></select>
         <label style="display:flex;gap:4px;align-items:center;font-size:11px;color:#94A3B8;"><input type="checkbox" id="chatAutoTr" checked> Traducir</label>`;
     head.appendChild(row);
-    remoteLang = localStorage.getItem('cnd_remote_lang')||'es';
+    remoteLang = localStorage.getItem('cnd_remote_lang') || 'auto';
     row.querySelector('#chatRemoteLang').value = remoteLang;
     row.querySelector('#chatRemoteLang').addEventListener('change', e => { remoteLang=e.target.value; localStorage.setItem('cnd_remote_lang', remoteLang); });
     row.querySelector('#chatAutoTr').addEventListener('change', e => { autoTranslateIn=e.target.checked; });
@@ -135,10 +135,10 @@ function startChatObserver(log) {
     chatObserver.observe(log, { childList:true, subtree:true });
 }
 async function translateLine(line) {
-    if (!autoTranslateIn || remoteLang===locale) return;
+    if (!autoTranslateIn) return;
     const orig = line.textContent;
     const tr = await CND_translate(orig, remoteLang, locale);
-    if (tr && tr!==orig) {
+    if (tr && tr !== orig) {
         const sub = document.createElement('div');
         sub.className='chat-line'; sub.style.cssText='font-size:11px;opacity:.75;font-style:italic;';
         sub.textContent='↳ '+tr;
