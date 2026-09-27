@@ -1,8 +1,7 @@
 // ============================================================================
-// CONDONIS - MODELS: listado con foto, KYC, nivel, galería y ofertas de show.
-// V8.1: SIN botón/card de retiro (los gestiona la agencia externamente).
-// El saldo de la modelo se ve arriba (core.js). El botón "Ofertar por un show"
-// aparece SIEMPRE para clientes, con categorías de actividad + descripción.
+// CONDONIS/LinguaMeet - MODELS: listado con foto, KYC, nivel, galería, ofertas.
+// V10-FIX: ofertas muestran ganancia al 28%; el perfil PROPIO de la creadora
+// muestra solo "Ganas por minuto" (nunca la tarifa del cliente) y sin botones.
 // ============================================================================
 
 import { SUPABASE_URL, SUPABASE_ANON_KEY } from './config.js';
@@ -16,7 +15,6 @@ const KYC_DOC_TYPES = [
     { id: 'selfie_with_id',  label: 'Selfie sosteniendo tu documento', required: true }
 ];
 
-// Categorías de show/actividad para las ofertas (V8.1)
 const SHOW_CATEGORIES = ['Baile', 'Conversación', 'Cosplay', 'Juego / Roleplay', 'Sesión de fotos', 'Otro'];
 
 let modelsClickBound = false;
@@ -66,7 +64,7 @@ async function loadActiveModels() {
     const models = await fetchActiveModels();
     window.appState.models = models || [];
     c.innerHTML = (models && models.length) ? models.map(cardHtml).join('')
-        : '<p class="empty-note">No hay modelos disponibles en este momento.</p>';
+        : '<p class="empty-note">No hay creadoras disponibles en este momento.</p>';
 }
 window.loadActiveModels = loadActiveModels;
 
@@ -79,17 +77,17 @@ async function fetchActiveModels() {
         const since = new Date(Date.now() - window.CND_CONFIG.PRESENCE_TIMEOUT).toISOString();
         const { data } = await window.supabase.from('profiles')
             .select('id, full_name, avatar_url, rating, is_online, in_call')
-            .eq('role', 'model').eq('kyc_status', 'approved').eq('is_banned', false)
-            .eq('is_active', true).eq('is_online', true).gte('last_seen', since);
-        return (data || []).map(p => ({ id: p.id, full_name: p.full_name, avatar_url: p.avatar_url,
-            rating: p.rating, is_online: p.is_online, in_call: p.in_call, client_rate: 0, level_name: 'Sin nivel', worker_level: 1 }));
+            .eq('role','model').eq('kyc_status','approved').eq('is_banned',false)
+            .eq('is_active',true).eq('is_online',true).gte('last_seen', since);
+        return (data || []).map(p => ({ id:p.id, full_name:p.full_name, avatar_url:p.avatar_url,
+            rating:p.rating, is_online:p.is_online, in_call:p.in_call, client_rate:0, level_name:'Sin nivel', worker_level:1 }));
     }
 }
 
 function cardHtml(m) {
     const inner = m.avatar_url
         ? `<img src="${m.avatar_url}" alt="${m.full_name}" style="width:100%;height:100%;object-fit:cover;display:block;">`
-        : (m.full_name || 'M').charAt(0).toUpperCase();
+        : (m.full_name || 'C').charAt(0).toUpperCase();
     const badge = m.in_call ? '<span class="model-status badge-incall">En llamada</span>'
                             : '<span class="model-status status-online">En linea</span>';
     return `
@@ -98,7 +96,7 @@ function cardHtml(m) {
             <div class="model-info">
                 <div class="model-name">${m.full_name}</div>
                 <div class="model-rate">${Number(m.client_rate || 0)} tokens/min</div>
-                <div class="model-meta"><span class="level-badge">${m.level_name || 'Modelo'}</span> ${starsHtml(m.rating)}</div>
+                <div class="model-meta"><span class="level-badge">${m.level_name || 'Creadora'}</span> ${starsHtml(m.rating)}</div>
                 ${badge}
             </div>
         </div>`;
@@ -111,9 +109,7 @@ function starsHtml(r) {
     return out + '</span>';
 }
 
-// ============================================================================
-// Home de modelo: SIN bloque de retiros (V8.1). El saldo va arriba (core.js).
-// ============================================================================
+// Home de creadora: SIN retiros; el saldo va arriba (core.js)
 async function renderModelHome() {
     const user = window.appState.currentUser;
     const profile = user.profile;
@@ -143,14 +139,13 @@ async function renderModelHome() {
             ${level ? `<div class="info-row"><span class="info-label">Ganas por minuto</span><span class="info-value">${modelRate} tokens/min</span></div><p class="hint">Tarifa de ganancia asignada a tu nivel.</p>` : '<p class="hint">El administrador asignara tu nivel al aprobar tu KYC.</p>'}
         </div>`;
 
-    // Ofertas de show recibidas (se mantiene; NO es retiro)
     const offers = await myOffers();
     const offersBlock = `
         <div class="card">
             <div class="card-header"><span class="card-title">Ofertas de show</span></div>
             <div id="offersList">${offers.length === 0 ? '<p class="hint">Sin ofertas pendientes.</p>' : offers.map(o => `
                 <div class="card" style="margin-bottom:8px;">
-                    <div class="info-row"><span class="info-label">${o.minutes} min · ${o.amount} tokens (tu ganancia)</span><span class="info-value">${new Date(o.expires_at).toLocaleTimeString()}</span></div>
+                    <div class="info-row"><span class="info-label">${o.minutes} min · ${(Number(o.amount) * window.CND_MODEL_PCT).toFixed(1)} tokens (tu ganancia)</span><span class="info-value">${new Date(o.expires_at).toLocaleTimeString()}</span></div>
                     <p class="hint">${o.description || 'Sin descripcion'}</p>
                     <div style="display:flex;gap:8px;">
                         <button class="btn" data-accept="${o.id}" style="flex:1;">Aceptar</button>
@@ -175,7 +170,6 @@ async function renderModelHome() {
             <div id="galleryGrid" class="gallery-grid"></div>
         </div>`;
 
-    // NOTE: sin payoutBlock (retiros) en V8.1
     zone.innerHTML = kycBlock + availBlock + levelBlock + offersBlock + bioBlock + galleryBlock;
 
     if (kycOk && level) {
@@ -194,7 +188,7 @@ async function renderModelHome() {
 async function myOffers() {
     const { data } = await window.supabase.from('show_offers')
         .select('*').eq('model_id', window.appState.currentUser.id)
-        .eq('status', 'pending').gt('expires_at', new Date().toISOString())
+        .eq('status','pending').gt('expires_at', new Date().toISOString())
         .order('created_at', { ascending: false });
     return data || [];
 }
@@ -333,9 +327,9 @@ function beaconOffline() {
     if (!presenceOnline) return;
     presenceOnline = false; stopHeartbeat();
     const u = window.appState.currentUser; if (!u || !accessToken) return;
-    fetch(`${SUPABASE_URL}/rest/v1/profiles?id=eq.${u.id}`, { method: 'PATCH', keepalive: true,
-        headers: { 'Content-Type': 'application/json', apikey: SUPABASE_ANON_KEY, Authorization: `Bearer ${accessToken}` },
-        body: JSON.stringify({ is_online: false, last_seen: new Date().toISOString() }) }).catch(() => {});
+    fetch(`${SUPABASE_URL}/rest/v1/profiles?id=eq.${u.id}`, { method:'PATCH', keepalive:true,
+        headers:{ 'Content-Type':'application/json', apikey:SUPABASE_ANON_KEY, Authorization:`Bearer ${accessToken}` },
+        body: JSON.stringify({ is_online:false, last_seen:new Date().toISOString() }) }).catch(() => {});
 }
 
 // ============================================================================
@@ -348,8 +342,8 @@ async function loadOwnDetails() {
 }
 async function saveModelProfile() {
     const u = window.appState.currentUser;
-    const sp = document.getElementById('editSpecialty').value.trim();
-    const bio = document.getElementById('editBio').value.trim();
+    const sp = window.CND_clean ? window.CND_clean(document.getElementById('editSpecialty').value, 60) : document.getElementById('editSpecialty').value.trim();
+    const bio = window.CND_clean ? window.CND_clean(document.getElementById('editBio').value, 240) : document.getElementById('editBio').value.trim();
     try {
         const { error } = await window.supabase.from('role_details').update({ specialty: sp, bio }).eq('user_id', u.id);
         if (error) throw error;
@@ -361,7 +355,7 @@ async function renderGallery() {
     const u = window.appState.currentUser;
     const g = document.getElementById('galleryGrid');
     if (!g || u.profile.role !== 'model') return;
-    const { data, error } = await window.supabase.storage.from('model-gallery').list(u.id, { limit: 100, sortBy: { column: 'created_at', order: 'desc' } });
+    const { data, error } = await window.supabase.storage.from('model-gallery').list(u.id, { limit:100, sortBy:{ column:'created_at', order:'desc' } });
     if (error || !data || !data.length) { g.innerHTML = '<p class="hint">Aun no tienes fotos.</p>'; return; }
     const b = window.supabase.storage.from('model-gallery');
     g.innerHTML = data.map(i => { const p = `${u.id}/${i.name}`;
@@ -373,7 +367,7 @@ async function uploadGalleryFile(input) {
     const f = input.files && input.files[0]; if (!f) return;
     const path = `${u.id}/${Date.now()}-${f.name.replace(/[^a-zA-Z0-9.\-_]/g, '_')}`;
     try {
-        const { error } = await window.supabase.storage.from('model-gallery').upload(path, f, { contentType: f.type, upsert: false });
+        const { error } = await window.supabase.storage.from('model-gallery').upload(path, f, { contentType:f.type, upsert:false });
         if (error) throw error;
         window.showToast('Foto subida', 'success'); await renderGallery();
     } catch (e) { window.showToast('No se pudo subir', 'error'); }
@@ -386,7 +380,7 @@ async function deleteGalleryFile(path) {
 }
 
 // ============================================================================
-// Modal de perfil: llamada + OFERTA DE SHOW (siempre visible para clientes)
+// Modal de perfil: llamada + oferta. V10-FIX: perfil propio sin tarifa cliente.
 // ============================================================================
 async function openModelProfile(modelId) {
     const body = document.getElementById('modelModalBody');
@@ -408,13 +402,14 @@ async function openModelProfile(modelId) {
 
     const viewer = window.appState.currentUser;
     const isClient = viewer.profile.role === 'client';
+    const isSelf = viewer.id === modelId;   // V10-FIX
     const d = payload.details || {};
     const level = d.level_id ? await fetchLevel(d.level_id) : null;
     const clientRate = level ? Number(level.rate_per_minute) : 0;
 
     let galleryHtml = '<p class="hint">Sin fotos publicas.</p>';
     try {
-        const { data: items } = await window.supabase.storage.from('model-gallery').list(modelId, { limit: 50, sortBy: { column: 'created_at', order: 'desc' } });
+        const { data: items } = await window.supabase.storage.from('model-gallery').list(modelId, { limit:50, sortBy:{ column:'created_at', order:'desc' } });
         if (items && items.length) {
             const b = window.supabase.storage.from('model-gallery');
             galleryHtml = '<div class="gallery-grid">' + items.map(i => `<div class="gallery-item"><img src="${b.getPublicUrl(`${modelId}/${i.name}`).data.publicUrl}" alt="Foto"></div>`).join('') + '</div>';
@@ -423,10 +418,10 @@ async function openModelProfile(modelId) {
 
     const headAvatar = p.avatar_url
         ? `<img src="${p.avatar_url}" alt="${p.full_name}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">`
-        : (p.full_name || 'M').charAt(0).toUpperCase();
+        : (p.full_name || 'C').charAt(0).toUpperCase();
 
-    const canCall = isClient && p.is_online && !p.in_call && level;
-    const canOffer = isClient; // V8.1: SIEMPRE para clientes, sin depender del nivel
+    const canCall = isClient && !isSelf && p.is_online && !p.in_call && level;
+    const canOffer = isClient && !isSelf;
 
     body.innerHTML = `
         <div class="modal-head">
@@ -434,7 +429,7 @@ async function openModelProfile(modelId) {
             <div><h3 class="modal-title">${p.full_name}</h3>
             <div class="model-meta">${level ? `<span class="level-badge">${level.name}</span> ` : ''}${starsHtml(p.rating)}</div></div>
         </div>
-        <div class="info-row"><span class="info-label">Tarifa</span><span class="info-value">${clientRate} tokens/min</span></div>
+        <div class="info-row"><span class="info-label">${isSelf ? 'Ganas por minuto' : 'Tarifa'}</span><span class="info-value">${isSelf ? (clientRate * window.CND_MODEL_PCT).toFixed(1) : clientRate} tokens/min</span></div>
         <div class="info-row"><span class="info-label">Especialidad</span><span class="info-value">${d.specialty || 'General'}</span></div>
         <div class="info-row"><span class="info-label">Estado</span><span class="info-value">${p.in_call ? 'En llamada' : (p.is_online ? 'En linea' : 'Desconectada')}</span></div>
         ${d.bio ? `<p class="modal-bio">${d.bio}</p>` : ''}
@@ -459,7 +454,7 @@ async function openModelProfile(modelId) {
     const ob = document.getElementById('offerBtn');
     if (ob) ob.addEventListener('click', async () => {
         const cat = document.getElementById('offerCat').value;
-        const desc = document.getElementById('offerDesc').value.trim();
+        const desc = window.CND_clean ? window.CND_clean(document.getElementById('offerDesc').value, 140) : document.getElementById('offerDesc').value.trim();
         const amount = Number(document.getElementById('offerAmount').value);
         const minutes = Number(document.getElementById('offerMinutes').value);
         if (!amount || !minutes) { window.showToast('Monto y minutos obligatorios', 'error'); return; }
