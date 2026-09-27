@@ -1,0 +1,12 @@
+{
+  "appId": "com.linguameet.app",
+  "appName": "LinguaMeet",
+  "webDir": ".",
+  "server": {
+    "url": "https://ferminprioridadprofesional-cmyk.github.io/condonis/app.html",
+    "cleartext": false
+  },
+  "plugins": {
+    "CapacitorHttp": { "enabled": true }
+  }
+}
