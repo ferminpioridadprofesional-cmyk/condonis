@@ -2345,3 +2345,38 @@ js/admin.js y js/calls.js (x2).
 3. Admin: "Niveles" muestra el reparto al 28%.
 4. En llamada, regalos con precios bajos; la creadora ve su 28% con 1 decimal.
 5. Al colgar, el header refleja el saldo/ganancia actualizado.
+
+6. ---
+
+## V10.2 (completo) - Fixes de llamada, traducción, saldo, ofertas + Capacitor
+**Fecha:** 26 de septiembre de 2026  
+**Versión:** FASE-10-V10.2-2026-09-26
+
+### Archivos re-entregados completos en esta tanda:
+- js/calls.js: contador único (sin IDs duplicados), corte por saldo
+  (tickUi + tickBill con insufficient), sonido de llamada entrante,
+  privacidad económica (cliente no lee model_rate; creadora usa
+  get_my_rate_for_call), regalos 1..100 con 28% a la creadora, refresco de
+  header al colgar.
+- js/models.js: notificación EN VIVO de ofertas de show (Realtime
+  show_offers + modal animado + sonido + countdown), ofertas con ganancia
+  al 28%, perfil propio sin tarifa de cliente, sin bloque de retiros.
+- package.json y capacitor.config.json: wrapper Capacitor que apunta a la
+  PWA publicada para generar APK/iOS de prueba.
+
+### Comandos de build de prueba:
+npm install
+npx cap add android
+npx cap add ios
+npx cap sync
+cd android && ./gradlew assembleDebug   (APK en android/app/build/outputs/apk/debug/)
+# iOS requiere Mac: npx cap open ios
+
+### Checklist:
+1. Contador de llamada avanza y costo/ganancia por segundo.
+2. Cliente sin saldo: corte automático con aviso.
+3. Chat AUTO traduce mensajes en otro idioma en tiempo real.
+4. Oferta enviada: a la creadora le suena y aparece modal animado con
+   Aceptar/Rechazar y countdown.
+5. Regalos 1..100 (cliente) y 28% con 1 decimal (creadora).
+6. APK debug instala y abre la app correctamente.
