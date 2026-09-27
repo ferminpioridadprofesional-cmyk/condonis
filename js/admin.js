@@ -1,6 +1,7 @@
 // ============================================================================
-// CONDONIS - ADMIN: Alertas (violaciones de chat), Usuarios, KYC, Niveles
-// V5.0: notificación en vivo al admin con la conversación completa del chat.
+// CONDONIS/LinguaMeet - ADMIN: Alertas, Usuarios, KYC y Niveles.
+// V10.1: la columna "gana" de niveles usa CND_MODEL_PCT (28%) con 1 decimal.
+// Las tabs Agencias/Retiros las inyecta agencies.js; Reportes compliance.js.
 // ============================================================================
 
 let usersSearchTimer = null;
@@ -10,7 +11,6 @@ async function initAdmin() {
     const user = window.appState.currentUser;
     if (!user || !user.profile || user.profile.role !== 'admin') return;
 
-    // Notificación en vivo de nuevas alertas
     if (!alertsChannel) {
         alertsChannel = window.supabase
             .channel('admin-alerts')
@@ -19,23 +19,17 @@ async function initAdmin() {
                 const badge = document.getElementById('alertsBadge');
                 if (badge) badge.textContent = String((parseInt(badge.textContent || '0', 10) || 0) + 1);
                 const active = document.querySelector('.admin-tab.active');
-                if (active && active.dataset.tab === 'alerts') {
-                    const content = document.getElementById('adminTabContent');
-                    if (content) renderAlertsTab(content);
-                }
+                if (active && active.dataset.tab === 'alerts') renderAlertsTab(document.getElementById('adminTabContent'));
             })
             .subscribe();
     }
-
     await renderAdminSection();
 }
-
 window.onAppReadyAdmin = initAdmin;
 
 async function renderAdminSection() {
     const container = document.getElementById('adminContent');
     if (!container) return;
-
     container.innerHTML = `
         <div class="admin-tabs">
             <button class="admin-tab active" data-tab="alerts">Alertas <span id="alertsBadge" class="kyc-badge kyc-rejected"></span></button>
@@ -43,9 +37,7 @@ async function renderAdminSection() {
             <button class="admin-tab" data-tab="kyc">KYC pendientes</button>
             <button class="admin-tab" data-tab="levels">Niveles y tarifas</button>
         </div>
-        <div id="adminTabContent"></div>
-    `;
-
+        <div id="adminTabContent"></div>`;
     container.querySelectorAll('.admin-tab').forEach(tab => {
         tab.addEventListener('click', async () => {
             container.querySelectorAll('.admin-tab').forEach(t => t.classList.remove('active'));
@@ -53,7 +45,6 @@ async function renderAdminSection() {
             await loadAdminTab(tab.dataset.tab);
         });
     });
-
     await loadAdminTab('alerts');
 }
 
@@ -67,48 +58,32 @@ async function loadAdminTab(tab) {
 }
 
 // ============================================================================
-// Alertas: listado + visor de conversación + marcar leída
+// Alertas
 // ============================================================================
 async function renderAlertsTab(content) {
     content.innerHTML = '<p class="hint">Cargando alertas...</p>';
-
-    const { data, error } = await window.supabase
-        .from('admin_alerts').select('*').order('created_at', { ascending: false }).limit(50);
-
-    // Contador de no leídas para el badge
+    const { data, error } = await window.supabase.from('admin_alerts').select('*').order('created_at', { ascending: false }).limit(50);
     const unread = (data || []).filter(a => !a.read).length;
     const badge = document.getElementById('alertsBadge');
     if (badge) badge.textContent = unread ? String(unread) : '';
-
-    if (error || !data || data.length === 0) {
-        content.innerHTML = '<p class="hint">No hay alertas de moderacion.</p>';
-        return;
-    }
+    if (error || !data || data.length === 0) { content.innerHTML = '<p class="hint">No hay alertas de moderacion.</p>'; return; }
 
     content.innerHTML = data.map(a => `
         <div class="card">
             <div class="card-header">
-                <div>
-                    <div class="card-title">${a.title}</div>
-                    <div class="hint">${new Date(a.created_at).toLocaleString()}</div>
-                </div>
+                <div><div class="card-title">${a.title}</div><div class="hint">${new Date(a.created_at).toLocaleString()}</div></div>
                 ${a.read ? '' : '<span class="kyc-badge kyc-rejected">Nueva</span>'}
             </div>
             <p class="hint">${a.body || ''}</p>
             <button class="btn btn-secondary" data-alert="${a.id}">Ver conversacion completa</button>
-        </div>
-    `).join('');
-
-    content.querySelectorAll('[data-alert]').forEach(btn => {
-        btn.addEventListener('click', () => openAlert(data.find(x => x.id === btn.dataset.alert)));
-    });
+        </div>`).join('');
+    content.querySelectorAll('[data-alert]').forEach(b => b.addEventListener('click', () => openAlert(data.find(x => x.id === b.dataset.alert))));
 }
 
 async function openAlert(alert) {
     const overlay = document.getElementById('modelModal');
     const body = document.getElementById('modelModalBody');
     if (!overlay || !body) return;
-
     const conv = alert.conversation || [];
     body.innerHTML = `
         <h3 class="modal-title">${alert.title}</h3>
@@ -117,30 +92,22 @@ async function openAlert(alert) {
         <div class="chat-log" style="max-height:300px;background:rgba(30,41,59,.4);border-radius:8px;">
             ${conv.length === 0 ? '<p class="hint">Sin mensajes registrados.</p>' :
               conv.map(m => `<div class="chat-line${m.sender === alert.related_user_id ? ' own' : ''}">${m.sender === alert.related_user_id ? '[Infractor] ' : ''}${m.body}</div>`).join('')}
-        </div>
-    `;
+        </div>`;
     overlay.classList.add('active');
-
-    // Marcar como leída
-    if (!alert.read) {
-        await window.supabase.from('admin_alerts').update({ read: true }).eq('id', alert.id);
-    }
+    if (!alert.read) await window.supabase.from('admin_alerts').update({ read: true }).eq('id', alert.id);
 }
 
 // ============================================================================
-// Usuarios: búsqueda + ficha + acciones (V4)
+// Usuarios
 // ============================================================================
 async function renderUsersTab(content) {
     content.innerHTML = `
         <div class="card">
             <div class="card-header"><span class="card-title">Todos los usuarios</span></div>
-            <div class="form-row">
-                <label for="userSearch">Buscar por nombre, ID o correo</label>
-                <input id="userSearch" type="text" placeholder="Ej: Pamela o dc384d54... o correo@x.com">
-            </div>
+            <div class="form-row"><label for="userSearch">Buscar por nombre, ID o correo</label>
+                <input id="userSearch" type="text" placeholder="Ej: nombre o id o correo"></div>
             <div id="usersList"></div>
-        </div>
-    `;
+        </div>`;
     const search = document.getElementById('userSearch');
     search.addEventListener('input', () => {
         if (usersSearchTimer) clearTimeout(usersSearchTimer);
@@ -159,7 +126,6 @@ async function loadUsers(search) {
         if (error) throw error;
         users = data || [];
     } catch (err) { list.innerHTML = '<p class="hint">No se pudo cargar usuarios.</p>'; return; }
-
     if (users.length === 0) { list.innerHTML = '<p class="hint">Sin resultados.</p>'; return; }
 
     list.innerHTML = users.map(u => `
@@ -176,12 +142,8 @@ async function loadUsers(search) {
                 </div>
             </div>
             <button class="btn btn-secondary" data-action="info" data-id="${u.id}">Ver informacion</button>
-        </div>
-    `).join('');
-
-    list.querySelectorAll('[data-action="info"]').forEach(btn => {
-        btn.addEventListener('click', () => openUserModal(btn.dataset.id));
-    });
+        </div>`).join('');
+    list.querySelectorAll('[data-action="info"]').forEach(b => b.addEventListener('click', () => openUserModal(b.dataset.id)));
 }
 
 async function openUserModal(userId) {
@@ -194,8 +156,7 @@ async function openUserModal(userId) {
     let payload = null;
     try {
         const { data, error } = await window.supabase.rpc('admin_get_user', { p_user_id: userId });
-        if (error) throw error;
-        payload = data;
+        if (error) throw error; payload = data;
     } catch (err) { body.innerHTML = '<p class="hint">No se pudo cargar la ficha.</p>'; return; }
 
     const p = payload.profile || {};
@@ -205,10 +166,7 @@ async function openUserModal(userId) {
     const docsWithUrls = await Promise.all(docs.map(async doc => {
         let url = doc.file_url;
         if (!String(doc.file_url).startsWith('http')) {
-            try {
-                const { data } = await window.supabase.storage.from('kyc-docs').createSignedUrl(doc.file_url, 3600);
-                if (data && data.signedUrl) url = data.signedUrl;
-            } catch (e) {}
+            try { const { data } = await window.supabase.storage.from('kyc-docs').createSignedUrl(doc.file_url, 3600); if (data && data.signedUrl) url = data.signedUrl; } catch (e) {}
         }
         return Object.assign({}, doc, { view_url: url });
     }));
@@ -226,22 +184,15 @@ async function openUserModal(userId) {
         <div class="info-row"><span class="info-label">KYC</span><span class="info-value">${p.kyc_status}</span></div>
         <div class="info-row"><span class="info-label">Ban</span><span class="info-value">${p.is_banned ? 'SI: ' + (p.ban_reason || '') : 'No'}</span></div>
         ${p.role === 'model' ? `
-            <div class="form-row" style="margin-top:12px;">
-                <label for="modalLevel">Nivel de la modelo</label>
-                <select id="modalLevel">
-                    <option value="">Sin nivel</option>
-                    ${(levels || []).map(l => `<option value="${l.id}" ${d.level_id === l.id ? 'selected' : ''}>${l.name} (${Number(l.rate_per_minute)} tokens/min)</option>`).join('')}
-                </select>
-            </div>` : ''}
+            <div class="form-row" style="margin-top:12px;"><label for="modalLevel">Nivel de la creadora</label>
+                <select id="modalLevel"><option value="">Sin nivel</option>
+                ${(levels || []).map(l => `<option value="${l.id}" ${d.level_id === l.id ? 'selected' : ''}>${l.name} (${Number(l.rate_per_minute)} tokens/min)</option>`).join('')}
+                </select></div>` : ''}
         ${docsWithUrls.length ? `
             <h4 class="gallery-title">Documentos KYC</h4>
-            <div class="kyc-review-list">
-                ${docsWithUrls.map(doc => `
-                    <div class="kyc-review-item">
-                        <div class="kyc-review-label">${doc.doc_type} · ${doc.status}</div>
-                        <a href="${doc.view_url}" target="_blank" rel="noopener"><img src="${doc.view_url}" alt="${doc.doc_type}" class="kyc-review-img"></a>
-                    </div>`).join('')}
-            </div>` : ''}
+            <div class="kyc-review-list">${docsWithUrls.map(doc => `
+                <div class="kyc-review-item"><div class="kyc-review-label">${doc.doc_type} · ${doc.status}</div>
+                <a href="${doc.view_url}" target="_blank" rel="noopener"><img src="${doc.view_url}" alt="${doc.doc_type}" class="kyc-review-img"></a></div>`).join('')}</div>` : ''}
         <h4 class="gallery-title">Tokens</h4>
         <div class="form-row" style="display:flex;gap:8px;align-items:end;">
             <div style="flex:1;"><label for="modalTokens">Cantidad (negativo resta)</label><input id="modalTokens" type="number" value="100"></div>
@@ -252,19 +203,14 @@ async function openUserModal(userId) {
             <button class="btn btn-secondary" id="modalPass">Cambiar contrasena</button>
             ${p.is_banned ? '<button class="btn btn-secondary" id="modalUnban">Desbanear</button>' : '<button class="btn btn-danger" id="modalBan">Banear (con razon)</button>'}
             <button class="btn btn-danger" id="modalDelete">Eliminar cuenta por completo</button>
-        </div>
-    `;
+        </div>`;
 
     const levelSel = document.getElementById('modalLevel');
     if (levelSel) levelSel.addEventListener('change', async () => {
         const lv = levelSel.value ? parseInt(levelSel.value, 10) : null;
         try {
-            if (lv) {
-                const { error } = await window.supabase.rpc('set_model_level', { p_model_id: userId, p_level_id: lv });
-                if (error) throw error;
-            } else {
-                await window.supabase.from('role_details').update({ level_id: null }).eq('user_id', userId);
-            }
+            if (lv) { const { error } = await window.supabase.rpc('set_model_level', { p_model_id: userId, p_level_id: lv }); if (error) throw error; }
+            else { await window.supabase.from('role_details').update({ level_id: null }).eq('user_id', userId); }
             window.showToast('Nivel actualizado', 'success');
             if (window.loadActiveModels) window.loadActiveModels();
         } catch (err) { window.showToast('Error: ' + err.message, 'error'); }
@@ -296,7 +242,7 @@ async function openUserModal(userId) {
         const reason = window.prompt('Razon del ban (obligatoria):');
         if (reason === null || reason.trim() === '') { window.showToast('Razon obligatoria', 'error'); return; }
         try {
-            const { error } = await window.supabase.rpc('admin_set_ban', { p_user_id: userId, p_banned: true, p_reason: reason.trim() });
+            const { error } = await window.supabase.rpc('admin_set_ban', { p_user_id: userId, p_banned: true, p_reason: window.CND_clean ? window.CND_clean(reason, 200) : reason.trim() });
             if (error) throw error;
             window.showToast('Usuario baneado', 'success');
             closeAdminModal(); await renderAdminSection();
@@ -328,18 +274,16 @@ async function openUserModal(userId) {
 function closeAdminModal() { if (window.closeModelModal) window.closeModelModal(); }
 
 // ============================================================================
-// KYC pendientes (sin cambios)
+// KYC pendientes
 // ============================================================================
 async function renderKycTab(content) {
     content.innerHTML = '<p class="hint">Cargando...</p>';
     let pending = [];
     try {
         const { data, error } = await window.supabase.rpc('list_kyc_pending');
-        if (error) throw error;
-        pending = data || [];
+        if (error) throw error; pending = data || [];
     } catch (err) { content.innerHTML = '<p class="hint">No se pudo cargar.</p>'; return; }
-
-    if (pending.length === 0) { content.innerHTML = '<p class="hint">No hay modelos pendientes.</p>'; return; }
+    if (pending.length === 0) { content.innerHTML = '<p class="hint">No hay creadoras pendientes.</p>'; return; }
 
     content.innerHTML = pending.map(m => `
         <div class="card">
@@ -349,10 +293,7 @@ async function renderKycTab(content) {
             </div>
             <button class="btn btn-secondary" data-action="review" data-id="${m.id}">Revisar documentos</button>
         </div>`).join('');
-
-    content.querySelectorAll('[data-action="review"]').forEach(btn => {
-        btn.addEventListener('click', () => openKycReview(btn.dataset.id));
-    });
+    content.querySelectorAll('[data-action="review"]').forEach(b => b.addEventListener('click', () => openKycReview(b.dataset.id)));
 }
 
 async function openKycReview(modelId) {
@@ -365,17 +306,13 @@ async function openKycReview(modelId) {
     let docs = [];
     try {
         const { data, error } = await window.supabase.rpc('get_kyc_documents', { p_model_id: modelId });
-        if (error) throw error;
-        docs = data || [];
+        if (error) throw error; docs = data || [];
     } catch (err) { body.innerHTML = '<p class="hint">No se pudo cargar.</p>'; return; }
 
     const docsWithUrls = await Promise.all(docs.map(async d => {
         let url = d.file_url;
         if (!String(d.file_url).startsWith('http')) {
-            try {
-                const { data } = await window.supabase.storage.from('kyc-docs').createSignedUrl(d.file_url, 3600);
-                if (data && data.signedUrl) url = data.signedUrl;
-            } catch (e) {}
+            try { const { data } = await window.supabase.storage.from('kyc-docs').createSignedUrl(d.file_url, 3600); if (data && data.signedUrl) url = data.signedUrl; } catch (e) {}
         }
         return Object.assign({}, d, { view_url: url });
     }));
@@ -388,15 +325,11 @@ async function openKycReview(modelId) {
         <p class="hint">${model ? model.full_name + ' — ' + model.email : ''}</p>
         <div class="kyc-review-list">
             ${docsWithUrls.length === 0 ? '<p class="hint">Sin documentos.</p>' : docsWithUrls.map(d => `
-                <div class="kyc-review-item">
-                    <div class="kyc-review-label">${d.doc_type}</div>
-                    <a href="${d.view_url}" target="_blank" rel="noopener"><img src="${d.view_url}" alt="${d.doc_type}" class="kyc-review-img"></a>
-                </div>`).join('')}
+                <div class="kyc-review-item"><div class="kyc-review-label">${d.doc_type}</div>
+                <a href="${d.view_url}" target="_blank" rel="noopener"><img src="${d.view_url}" alt="${d.doc_type}" class="kyc-review-img"></a></div>`).join('')}
         </div>
-        <div class="form-row" style="margin-top:16px;">
-            <label for="kycLevel">Asignar nivel (al aprobar)</label>
-            <select id="kycLevel">${(levels || []).map(l => `<option value="${l.id}">${l.name} (${Number(l.rate_per_minute)} tokens/min)</option>`).join('')}</select>
-        </div>
+        <div class="form-row" style="margin-top:16px;"><label for="kycLevel">Asignar nivel (al aprobar)</label>
+            <select id="kycLevel">${(levels || []).map(l => `<option value="${l.id}">${l.name} (${Number(l.rate_per_minute)} tokens/min)</option>`).join('')}</select></div>
         <div class="form-row"><label for="kycRejectReason">Motivo de rechazo</label><input id="kycRejectReason" type="text"></div>
         <div style="display:flex;gap:12px;margin-top:16px;">
             <button class="btn" id="kycApprove" style="flex:1;">Aprobar</button>
@@ -410,26 +343,26 @@ async function openKycReview(modelId) {
             if (e1) throw e1;
             const { error: e2 } = await window.supabase.rpc('approve_model', { p_model_id: modelId });
             if (e2) throw e2;
-            window.showToast('Modelo aprobada', 'success');
+            window.showToast('Creadora aprobada y nivel asignado', 'success');
             closeAdminModal(); await renderAdminSection();
             if (window.loadActiveModels) window.loadActiveModels();
-        } catch (err) { window.showToast('Error: ' + err.message, 'error'); }
+        } catch (err) { window.showToast('Error al aprobar: ' + err.message, 'error'); }
     });
 
     document.getElementById('kycReject').addEventListener('click', async () => {
-        const reason = document.getElementById('kycRejectReason').value.trim();
+        const reason = window.CND_clean ? window.CND_clean(document.getElementById('kycRejectReason').value, 200) : document.getElementById('kycRejectReason').value.trim();
         if (!reason) { window.showToast('Motivo obligatorio', 'error'); return; }
         try {
             const { error } = await window.supabase.rpc('reject_model', { p_model_id: modelId, p_reason: reason });
             if (error) throw error;
-            window.showToast('Modelo rechazada', 'success');
+            window.showToast('Creadora rechazada', 'success');
             closeAdminModal(); await renderAdminSection();
-        } catch (err) { window.showToast('Error: ' + err.message, 'error'); }
+        } catch (err) { window.showToast('Error al rechazar: ' + err.message, 'error'); }
     });
 }
 
 // ============================================================================
-// Niveles (sin cambios)
+// Niveles y tarifas (V10.1: reparto al 28%)
 // ============================================================================
 async function renderLevelsTab(content) {
     const { data: levels } = await window.supabase.from('kyc_levels').select('*').order('sort_order');
@@ -438,9 +371,9 @@ async function renderLevelsTab(content) {
     content.innerHTML = `
         <div class="card">
             <div class="card-header"><span class="card-title">Niveles y tarifas</span></div>
-            <p class="hint">Cada modelo gana el 50% del precio del nivel.</p>
+            <p class="hint">La creadora gana el ${Math.round(window.CND_MODEL_PCT * 100)}% del precio del nivel.</p>
             <table class="levels-table">
-                <thead><tr><th>Nivel</th><th>Nombre</th><th>Precio</th><th>Modelo gana</th><th></th></tr></thead>
+                <thead><tr><th>Nivel</th><th>Nombre</th><th>Precio (tokens/min)</th><th>Creadora gana</th><th></th></tr></thead>
                 <tbody>
                     ${levels.map(l => `
                         <tr data-id="${l.id}">
@@ -458,7 +391,7 @@ async function renderLevelsTab(content) {
         btn.addEventListener('click', async () => {
             const row = btn.closest('tr');
             const id = parseInt(row.dataset.id, 10);
-            const name = row.querySelector('.lvl-name').value.trim();
+            const name = window.CND_clean ? window.CND_clean(row.querySelector('.lvl-name').value, 40) : row.querySelector('.lvl-name').value.trim();
             const rate = Number(row.querySelector('.lvl-rate').value);
             if (!name || !rate || rate < 1) { window.showToast('Nombre y tarifa obligatorios', 'error'); return; }
             try {
