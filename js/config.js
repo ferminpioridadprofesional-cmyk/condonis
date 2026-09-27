@@ -1,5 +1,5 @@
 // ============================================================================
-// CONDONIS - CONFIGURACIÓN GLOBAL (V8.2)
+// CONDONIS/LinguaMeet - CONFIGURACIÓN GLOBAL (V10-FIX)
 // ============================================================================
 
 const SUPABASE_URL = 'https://xvnefjjufadwkhzavgni.supabase.co';
@@ -22,17 +22,12 @@ window.CND_CONFIG = {
     DEBOUNCE_DELAY: 150, TICK_INTERVAL: 10000
 };
 
-// Porcentaje que gana la creadora (28%). La app retiene el resto (72%).
-window.CND_MODEL_PCT = 0.28;
-
-// Nombre público de la app (neutro, social/idiomas). Cambiable sin tocar código.
-window.CND_APP_NAME = 'LinguaMeet';
-
-// Rebrand de UI: modelo->creadora, cliente->miembro (enmascaramiento)
+window.CND_MODEL_PCT = 0.28;              // la creadora gana 28%
+window.CND_APP_NAME = 'LinguaMeet';       // nombre público (cambiable)
+window.CND_SUPPORT_EMAIL = 'soporte@linguameet.com'; // cámbialo por tu correo real
 window.CND_REBRAND = true;
-
 window.CND_BUILD_MODE = 'full';
 window.CND_LOCALE = 'es';
-window.CND_BUILD = 'FASE-8-V8.2-2026-09-25';
+window.CND_BUILD = 'FASE-10-V10FIX-2026-09-26';
 
 export { SUPABASE_URL, SUPABASE_ANON_KEY };
