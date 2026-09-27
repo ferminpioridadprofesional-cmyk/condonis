@@ -1,7 +1,7 @@
 // ============================================================================
-// CONDONIS/LinguaMeet - MODELS: listado con foto, KYC, nivel, galería, ofertas.
-// V10-FIX: ofertas muestran ganancia al 28%; el perfil PROPIO de la creadora
-// muestra solo "Ganas por minuto" (nunca la tarifa del cliente) y sin botones.
+// CONDONIS/LinguaMeet - MODELS: listado con foto, KYC, nivel, galería, ofertas
+// y notificación EN VIVO de ofertas (modal animado + sonido). Sin retiros
+// (los gestiona la agencia externamente). Privacidad económica de la creadora.
 // ============================================================================
 
 import { SUPABASE_URL, SUPABASE_ANON_KEY } from './config.js';
@@ -14,7 +14,6 @@ const KYC_DOC_TYPES = [
     { id: 'protection_card', label: 'Carnet de proteccion temporal',   required: false },
     { id: 'selfie_with_id',  label: 'Selfie sosteniendo tu documento', required: true }
 ];
-
 const SHOW_CATEGORIES = ['Baile', 'Conversación', 'Cosplay', 'Juego / Roleplay', 'Sesión de fotos', 'Otro'];
 
 let modelsClickBound = false;
@@ -22,6 +21,8 @@ let presenceOnline = false;
 let heartbeatTimer = null;
 let accessToken = '';
 let ownDetails = null;
+let offerChannel = null;
+let offerModalTimer = null;
 
 async function initModels() {
     const user = window.appState.currentUser;
@@ -34,6 +35,7 @@ async function initModels() {
         await loadOwnDetails();
         if (presenceOnline) startHeartbeat();
         window.addEventListener('pagehide', beaconOffline);
+        subscribeOfferNotifications();   // V10.2: ofertas en vivo
     }
 
     if (!modelsClickBound) {
@@ -109,7 +111,7 @@ function starsHtml(r) {
     return out + '</span>';
 }
 
-// Home de creadora: SIN retiros; el saldo va arriba (core.js)
+// Home de creadora: sin retiros; saldo arriba (core.js)
 async function renderModelHome() {
     const user = window.appState.currentUser;
     const profile = user.profile;
@@ -228,6 +230,73 @@ function bindModelHomeEvents() {
             await renderModelHome();
         } catch (e) { window.showToast(e.message, 'error'); }
     }));
+}
+
+// ============================================================================
+// V10.2: Notificación EN VIVO de ofertas (Realtime + modal animado + sonido)
+// ============================================================================
+function subscribeOfferNotifications() {
+    const user = window.appState.currentUser;
+    if (!user || user.profile.role !== 'model' || offerChannel) return;
+    offerChannel = window.supabase
+        .channel('offers-' + user.id)
+        .on('postgres_changes',
+            { event: 'INSERT', schema: 'public', table: 'show_offers', filter: 'model_id=eq.' + user.id },
+            (payload) => { const o = payload.new; if (o && o.status === 'pending') showOfferIncoming(o); })
+        .subscribe();
+}
+
+function showOfferIncoming(offer) {
+    if (window.CND_beep) window.CND_beep(4, 990);
+
+    let modal = document.getElementById('offerModal');
+    if (!modal) {
+        modal = document.createElement('div');
+        modal.id = 'offerModal'; modal.className = 'modal-overlay'; modal.setAttribute('role','dialog');
+        modal.innerHTML = `<div class="modal-card incoming-card">
+            <div class="incoming-pulse"></div>
+            <h3 id="offerTitle" class="modal-title">Nueva oferta de show</h3>
+            <p id="offerInfo" class="hint"></p>
+            <p id="offerCount" class="hint" style="color:#00D4FF;font-weight:700;"></p>
+            <div class="incoming-actions">
+                <button id="offerDeny" class="btn btn-danger">Rechazar</button>
+                <button id="offerAccept" class="btn">Aceptar</button>
+            </div></div>`;
+        document.body.appendChild(modal);
+    }
+
+    const gain = (Number(offer.amount) * window.CND_MODEL_PCT).toFixed(1);
+    document.getElementById('offerTitle').textContent = 'Nueva oferta de show';
+    document.getElementById('offerInfo').textContent = offer.minutes + ' min · Ganas ' + gain + ' tokens · ' + (offer.description || '');
+    modal.classList.add('active');
+
+    let secs = 300;
+    const cd = document.getElementById('offerCount');
+    if (offerModalTimer) clearInterval(offerModalTimer);
+    offerModalTimer = setInterval(() => {
+        secs -= 1;
+        if (cd) cd.textContent = 'Expira en ' + Math.floor(secs/60) + ':' + String(secs%60).padStart(2,'0');
+        if (secs <= 0) { clearInterval(offerModalTimer); modal.classList.remove('active'); }
+    }, 1000);
+
+    const accept = document.getElementById('offerAccept');
+    const deny = document.getElementById('offerDeny');
+    const ca = accept.cloneNode(true); const cdn = deny.cloneNode(true);
+    accept.replaceWith(ca); deny.replaceWith(cdn);
+    ca.addEventListener('click', async () => {
+        clearInterval(offerModalTimer); modal.classList.remove('active');
+        try {
+            const { error } = await window.supabase.rpc('respond_show_offer', { p_offer_id: offer.id, p_accept: true });
+            if (error) throw error;
+            window.showToast('Oferta aceptada: ganancia acreditada', 'success');
+            if (window.loadUserProfile) await window.loadUserProfile();
+            await renderModelHome();
+        } catch (e) { window.showToast(e.message || 'No se pudo aceptar', 'error'); }
+    });
+    cdn.addEventListener('click', async () => {
+        clearInterval(offerModalTimer); modal.classList.remove('active');
+        try { await window.supabase.rpc('respond_show_offer', { p_offer_id: offer.id, p_accept: false }); } catch (e) {}
+    });
 }
 
 // ============================================================================
@@ -380,7 +449,7 @@ async function deleteGalleryFile(path) {
 }
 
 // ============================================================================
-// Modal de perfil: llamada + oferta. V10-FIX: perfil propio sin tarifa cliente.
+// Modal de perfil: llamada + oferta. Perfil propio sin tarifa de cliente.
 // ============================================================================
 async function openModelProfile(modelId) {
     const body = document.getElementById('modelModalBody');
@@ -402,7 +471,7 @@ async function openModelProfile(modelId) {
 
     const viewer = window.appState.currentUser;
     const isClient = viewer.profile.role === 'client';
-    const isSelf = viewer.id === modelId;   // V10-FIX
+    const isSelf = viewer.id === modelId;
     const d = payload.details || {};
     const level = d.level_id ? await fetchLevel(d.level_id) : null;
     const clientRate = level ? Number(level.rate_per_minute) : 0;
@@ -442,7 +511,7 @@ async function openModelProfile(modelId) {
             <div class="form-row"><label for="offerDesc">Describe el show que quieres</label>
                 <input id="offerDesc" type="text" maxlength="140" placeholder="Ej: baile de 5 min con musica X"></div>
             <div class="form-row" style="display:flex;gap:8px;">
-                <div style="flex:1;"><label for="offerAmount">Monto (tokens)</label><input id="offerAmount" type="number" min="1" value="50"></div>
+                <div style="flex:1;"><label for="offerAmount">Monto (tokens)</label><input id="offerAmount" type="number" min="1" value="20"></div>
                 <div style="flex:1;"><label for="offerMinutes">Minutos</label><input id="offerMinutes" type="number" min="1" value="5"></div>
             </div>
             <button class="btn btn-secondary" style="width:100%;" id="offerBtn">Enviar oferta</button>` : ''}
