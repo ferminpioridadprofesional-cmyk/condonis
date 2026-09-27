@@ -1,7 +1,8 @@
 // ============================================================================
 // CONDONIS/LinguaMeet - CALLS: videollamadas + chat + controles + regalos.
-// V10-FIX: el cliente NO lee model_rate; la creadora obtiene SU rate vía
-// get_my_rate_for_call (nunca ve el precio del cliente).
+// V10.1: regalos de la creadora con 1 decimal; al colgar se refresca el
+// saldo del header (loadUserProfile). El cliente nunca ve el rate de la
+// creadora; la creadora nunca ve el precio del cliente.
 // ============================================================================
 
 let callState = null;
@@ -131,7 +132,6 @@ function handleCallEvent(payload) {
     }
 }
 
-// V10-FIX: la creadora obtiene SU rate vía RPC (nunca el precio del cliente)
 async function showIncoming(row) {
     if (ringing || callState) return;
     let myRate = 0;
@@ -164,7 +164,6 @@ async function rejectIncoming() {
     try { await window.supabase.rpc('reject_call', { p_call_id: info.callId }); } catch (e) {}
 }
 
-// V10-FIX: el cliente lee solo client_rate (no model_rate)
 async function CND_startCall(modelId) {
     if (callState) { window.showToast('Ya tienes una llamada en curso', 'error'); return; }
     const profile = window.appState.currentUser.profile;
@@ -279,13 +278,14 @@ async function loadGifts() {
     return giftsCache;
 }
 
+// V10.1: la creadora ve su 28% con 1 decimal; el cliente ve el precio pleno.
 async function renderGiftsRow() {
     const row = document.getElementById('giftsRow');
     if (!row || !callState) return;
     const gifts = await loadGifts();
     const isClient = callState.isCaller;
     row.innerHTML = gifts.map(g => {
-        const price = isClient ? Number(g.client_price) : Number(g.client_price) * window.CND_MODEL_PCT;
+        const price = isClient ? Number(g.client_price) : Number((Number(g.client_price) * window.CND_MODEL_PCT).toFixed(1));
         return `<button class="gift-btn" data-gift="${g.id}" aria-label="${g.name}">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 12 20 22 4 22 4 12"></polyline><rect x="2" y="7" width="20" height="5"></rect><line x1="12" y1="22" x2="12" y2="7"></line><path d="M12 7H7.5a2.5 2.5 0 0 1 0-5C11 2 12 7 12 7z"></path><path d="M12 7h4.5a2.5 2.5 0 0 0 0-5C13 2 12 7 12 7z"></path></svg>
             ${g.name}<small>${price} tokens</small></button>`;
@@ -312,7 +312,7 @@ async function sendGiftRpc(giftId, playFx) {
         if (window.updateUserUI) window.updateUserUI();
         const g = (await loadGifts()).find(x => x.id === giftId);
         window.showToast(callState.isCaller ? 'Regalo enviado: -' + Number(g.client_price) + ' tokens'
-                                             : 'Regalo recibido: +' + Number(data.earn) + ' tokens', 'success');
+                                             : 'Regalo recibido: +' + Number(data.earn).toFixed(1) + ' tokens', 'success');
         sigSend('gift', { giftId });
         if (playFx) playGiftFx(g.asset);
     } catch (err) { window.showToast(err.message || 'No se pudo enviar el regalo', 'error'); }
@@ -407,7 +407,7 @@ async function handleSignal(msg) {
         const g = (await loadGifts()).find(x => x.id === msg.giftId);
         if (g) playGiftFx(g.asset);
     } else if (msg.type === 'tip') {
-        if (!callState.isCaller) window.showToast('Solicitud aceptada: +' + (msg.amount * window.CND_MODEL_PCT) + ' tokens', 'success');
+        if (!callState.isCaller) window.showToast('Solicitud aceptada: +' + (msg.amount * window.CND_MODEL_PCT).toFixed(1) + ' tokens', 'success');
     } else if (msg.type === 'request-denied') {
         window.showToast('La solicitud fue rechazada', 'info');
     }
@@ -526,7 +526,10 @@ async function endCall(reason) {
     document.getElementById('localVideo').srcObject = null;
     const rm = document.getElementById('callRequestModal'); if (rm) rm.classList.remove('active');
     const mb = document.getElementById('micBtn'); if (mb) mb.classList.remove('off');
+
     callState = null;
+    // V10.1: refrescar saldo/ganancias del header tras liquidar
+    if (window.loadUserProfile) window.loadUserProfile();
 
     if (reason === 'rejected') window.showToast('La creadora rechazo la llamada. No se te cobro nada.', 'info');
     else if (reason === 'network') window.showToast('Tu red parece estar detras de una NAT restrictiva. Recomendamos: usar WiFi, desactivar VPN o intentar mas tarde.', 'error');
