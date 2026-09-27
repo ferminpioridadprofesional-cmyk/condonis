@@ -1,7 +1,7 @@
 // ============================================================================
 // CONDONIS - CORE: sesión, navegación, Realtime, perfil, avatar, eliminación
-// V9-SEC-fix: el botón Cerrar Sesión se ata aquí (por id o por texto) y
-// logout() SIEMPRE redirige a index.html aunque signOut() falle.
+// V9-SEC-fix2: logout DURO (signOut + limpieza de tokens sb-* + redirect) y
+// listener DELEGADO global para el botón Cerrar Sesión (captura siempre).
 // ============================================================================
 
 window.appState = {
@@ -12,6 +12,8 @@ window.appState = {
     heartbeatInterval: null,
     realtimeSubscription: null
 };
+
+let loggingOut = false; // evita doble logout simultáneo
 
 async function initApp() {
     try {
@@ -24,8 +26,7 @@ async function initApp() {
         const profile = window.appState.currentUser.profile;
         if (profile && profile.is_banned) {
             showToast('Tu cuenta esta suspendida. Razon: ' + (profile.ban_reason || 'consulta a soporte'), 'error');
-            await window.supabase.auth.signOut();
-            window.location.href = 'index.html';
+            await logout();
             return;
         }
 
@@ -195,19 +196,31 @@ async function deleteOwnAccount() {
     try {
         const { error } = await window.supabase.rpc('self_delete_account');
         if (error) throw error;
-        try { await window.supabase.auth.signOut(); } catch (e) {}
-        window.location.href = 'index.html';
+        await logout();
     } catch (e) { showToast('No se pudo eliminar la cuenta', 'error'); }
 }
 
 // ----------------------------------------------------------------------------
-// logout(): CIERRA y SIEMPRE redirige, aunque signOut o el canal fallen.
+// logout DURO: cierra sesión; si signOut falla, borra a mano los tokens de
+// Supabase (claves sb-*) del navegador y SIEMPRE sale a index.html.
 // ----------------------------------------------------------------------------
 async function logout() {
+    if (loggingOut) return;
+    loggingOut = true;
+    console.log('[CONDONIS] logout iniciado');
+
     try { if (window.appState.realtimeSubscription) window.supabase.removeChannel(window.appState.realtimeSubscription); } catch (e) {}
-    try { await window.supabase.auth.signOut(); } catch (e) { /* sesión ya inválida: igual salimos */ }
+    try { await window.supabase.auth.signOut({ scope: 'global' }); }
+    catch (e) { console.warn('[CONDONIS] signOut fallo, limpiando tokens manualmente:', e); }
+
+    // Limpieza dura de credenciales almacenadas (garantiza salida)
+    try {
+        Object.keys(localStorage).forEach(k => { if (k.startsWith('sb-')) localStorage.removeItem(k); });
+        sessionStorage.clear();
+    } catch (e) {}
+
     window.appState.currentUser = null;
-    window.location.href = 'index.html';
+    window.location.replace('index.html');
 }
 
 function renderHistoryPlaceholder() { const c = document.getElementById('historyContent'); if (c) c.innerHTML = '<p style="color:#94A3B8;">El historial estará disponible próximamente.</p>'; }
@@ -223,20 +236,18 @@ function showToast(message, type = 'info') {
 }
 
 document.addEventListener('DOMContentLoaded', () => {
-    // Navegación inferior
     document.querySelectorAll('.nav-item').forEach(i => i.addEventListener('click', () => { const s = i.dataset.section; if (s) showSection(s); }));
-
-    // Botón Cerrar Sesión: lo atamos AQUÍ (por id O por texto) para que
-    // funcione con cualquier versión de app.html. Un solo listener.
-    const lb = document.getElementById('logoutBtn')
-        || Array.from(document.querySelectorAll('button')).find(b => /cerrar sesi/i.test(b.textContent || ''));
-    if (lb && !lb.dataset.logoutBound) {
-        lb.dataset.logoutBound = '1';
-        lb.addEventListener('click', logout);
-    }
-
     initApp();
 });
+
+// Listener DELEGADO global (capture): captura el click de Cerrar Sesión por id
+// o por texto, sin importar cuándo se creó el botón o si otro atado falló.
+document.addEventListener('click', (e) => {
+    const el = e.target.closest ? e.target.closest('button') : null;
+    if (!el) return;
+    const isLogout = (el.id === 'logoutBtn') || /cerrar sesi/i.test(el.textContent || '');
+    if (isLogout) { e.preventDefault(); e.stopPropagation(); logout(); }
+}, true);
 
 window.initApp = initApp;
 window.loadUserProfile = loadUserProfile;
