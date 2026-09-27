@@ -1,8 +1,7 @@
 // ============================================================================
-// CONDONIS - CALLS: Videollamadas + UI reorganizada + liquidación correcta
-// V6.0: dock inferior en columna (chat plegable, regalos, barra de control)
-// para que nada se tape; al colgar se llama settle_call: si cuelga el cliente
-// la modelo cobra su 50%; si cuelga la modelo, la plataforma retiene su parte.
+// CONDONIS/LinguaMeet - CALLS: videollamadas + chat + controles + regalos.
+// V10-FIX: el cliente NO lee model_rate; la creadora obtiene SU rate vía
+// get_my_rate_for_call (nunca ve el precio del cliente).
 // ============================================================================
 
 let callState = null;
@@ -30,18 +29,13 @@ function initCalls() {
     const uid = window.appState.currentUser.id;
     callsChannelDb = window.supabase
         .channel('calls-' + uid)
-        .on('postgres_changes', { event: '*', schema: 'public', table: 'video_calls' },
-            (p) => handleCallEvent(p))
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'video_calls' }, (p) => handleCallEvent(p))
         .subscribe();
 }
 
-// ============================================================================
-// buildCallUI(): layout en dock vertical: topbar / chat / regalos / barra
-// ============================================================================
 function buildCallUI() {
     if (callUIBuilt) return;
     callUIBuilt = true;
-
     const style = document.createElement('style');
     style.textContent = `
         .call-topbar{position:absolute;top:12px;left:12px;right:12px;display:none;align-items:center;justify-content:space-between;gap:10px;z-index:4;}
@@ -80,131 +74,77 @@ function buildCallUI() {
     document.head.appendChild(style);
 
     const overlay = document.getElementById('callOverlay');
+    const fx = document.createElement('div'); fx.id = 'giftFx'; fx.className = 'gift-fx'; overlay.appendChild(fx);
 
-    // Capa de animaciones de regalo
-    const fx = document.createElement('div');
-    fx.id = 'giftFx'; fx.className = 'gift-fx';
-    overlay.appendChild(fx);
-
-    // Barra superior: controles a la izquierda, timer/costo a la derecha
-    const topbar = document.createElement('div');
-    topbar.className = 'call-topbar';
+    const topbar = document.createElement('div'); topbar.className = 'call-topbar';
     topbar.innerHTML = `
         <div class="topbar-left">
-            <button id="micBtn" class="ctrl-btn" aria-label="Microfono">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path><path d="M19 10v2a7 7 0 0 1-14 0v-2"></path><line x1="12" y1="19" x2="12" y2="23"></line></svg>
-            </button>
-            <button id="camBtn" class="ctrl-btn" aria-label="Cambiar camara">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"></polyline><polyline points="1 20 1 14 7 14"></polyline><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path></svg>
-            </button>
+            <button id="micBtn" class="ctrl-btn" aria-label="Microfono"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path><path d="M19 10v2a7 7 0 0 1-14 0v-2"></path><line x1="12" y1="19" x2="12" y2="23"></line></svg></button>
+            <button id="camBtn" class="ctrl-btn" aria-label="Cambiar camara"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"></polyline><polyline points="1 20 1 14 7 14"></polyline><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path></svg></button>
         </div>
-        <div class="topbar-right">
-            <span class="hud-pill" id="callTimer">00:00</span>
-            <span class="hud-pill" id="callCost"></span>
-        </div>
-    `;
+        <div class="topbar-right"><span class="hud-pill" id="callTimer">00:00</span><span class="hud-pill" id="callCost"></span></div>`;
     overlay.appendChild(topbar);
 
-    // Dock inferior en columna: chat plegable, regalos y barra de colgar
-    const dock = document.createElement('div');
-    dock.className = 'call-dock';
+    const dock = document.createElement('div'); dock.className = 'call-dock';
     dock.innerHTML = `
         <div class="chat-panel" id="chatPanel">
-            <div class="chat-head">
-                <span style="font-size:12px;font-weight:700;color:#94A3B8;">Chat de la llamada</span>
-                <button id="chatToggle" aria-label="Plegar o expandir chat">Ocultar</button>
-            </div>
+            <div class="chat-head"><span style="font-size:12px;font-weight:700;color:#94A3B8;">Chat de la llamada</span><button id="chatToggle" aria-label="Plegar o expandir chat">Ocultar</button></div>
             <div id="chatLog" class="chat-log"></div>
             <div class="chat-input-row">
                 <input id="chatInput" type="text" maxlength="300" placeholder="Escribe un mensaje..." aria-label="Mensaje de chat">
-                <button id="chatSendBtn" class="chat-send" aria-label="Enviar mensaje">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
-                </button>
+                <button id="chatSendBtn" class="chat-send" aria-label="Enviar mensaje"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg></button>
             </div>
         </div>
         <div class="gifts-row" id="giftsRow"></div>
-        <div class="call-bar" id="callBar"></div>
-    `;
+        <div class="call-bar" id="callBar"></div>`;
     overlay.appendChild(dock);
 
-    // Mover el botón de colgar existente a la barra inferior
     const hang = document.getElementById('hangupBtn');
     if (hang) document.getElementById('callBar').appendChild(hang);
 
-    // Modal genérico de solicitudes
-    const req = document.createElement('div');
-    req.id = 'callRequestModal'; req.className = 'modal-overlay';
-    req.setAttribute('role', 'dialog');
-    req.innerHTML = `
-        <div class="modal-card incoming-card">
-            <h3 id="reqTitle" class="modal-title">Solicitud</h3>
-            <p id="reqText" class="hint"></p>
-            <div class="incoming-actions">
-                <button id="reqDeny" class="btn btn-danger">Rechazar</button>
-                <button id="reqAccept" class="btn">Aceptar</button>
-            </div>
-        </div>`;
+    const req = document.createElement('div'); req.id = 'callRequestModal'; req.className = 'modal-overlay'; req.setAttribute('role','dialog');
+    req.innerHTML = `<div class="modal-card incoming-card"><h3 id="reqTitle" class="modal-title">Solicitud</h3><p id="reqText" class="hint"></p>
+        <div class="incoming-actions"><button id="reqDeny" class="btn btn-danger">Rechazar</button><button id="reqAccept" class="btn">Aceptar</button></div></div>`;
     document.body.appendChild(req);
 
-    // Listeners fijos
     document.getElementById('micBtn').addEventListener('click', toggleMic);
     document.getElementById('camBtn').addEventListener('click', switchCamera);
     document.getElementById('chatToggle').addEventListener('click', () => {
         const panel = document.getElementById('chatPanel');
         panel.classList.toggle('collapsed');
-        document.getElementById('chatToggle').textContent =
-            panel.classList.contains('collapsed') ? 'Mostrar' : 'Ocultar';
+        document.getElementById('chatToggle').textContent = panel.classList.contains('collapsed') ? 'Mostrar' : 'Ocultar';
     });
-    const doSend = () => {
-        const input = document.getElementById('chatInput');
-        window.CND_chat.send(input.value).then(ok => { if (ok) input.value = ''; });
-    };
+    const doSend = () => { const input = document.getElementById('chatInput'); window.CND_chat.send(input.value).then(ok => { if (ok) input.value = ''; }); };
     document.getElementById('chatSendBtn').addEventListener('click', doSend);
     document.getElementById('chatInput').addEventListener('keydown', (e) => { if (e.key === 'Enter') doSend(); });
 }
 
-// ============================================================================
-// Eventos de llamada
-// ============================================================================
 function handleCallEvent(payload) {
     const uid = window.appState.currentUser.id;
     const row = payload.new;
     if (!row || (row.client_id !== uid && row.model_id !== uid)) return;
-
-    if (payload.eventType === 'INSERT' && row.model_id === uid && row.status === 'waiting') {
-        showIncoming(row); return;
-    }
+    if (payload.eventType === 'INSERT' && row.model_id === uid && row.status === 'waiting') { showIncoming(row); return; }
     if (payload.eventType === 'UPDATE') {
-        if (ringing && row.id === ringing.callId && (row.status === 'missed' || row.status === 'ended')) {
-            hideIncoming(); window.showToast('La llamada fue cancelada', 'info'); return;
-        }
-        if (callState && row.id === callState.callId && row.status === 'ended' && !callState.ending) {
-            endCall('remote-ended'); return;
-        }
-        if (callState && row.id === callState.callId && row.status === 'missed' && callState.isCaller) {
-            endCall('rejected'); return;
-        }
+        if (ringing && row.id === ringing.callId && (row.status === 'missed' || row.status === 'ended')) { hideIncoming(); window.showToast('La llamada fue cancelada', 'info'); return; }
+        if (callState && row.id === callState.callId && row.status === 'ended' && !callState.ending) { endCall('remote-ended'); return; }
+        if (callState && row.id === callState.callId && row.status === 'missed' && callState.isCaller) { endCall('rejected'); return; }
     }
 }
 
+// V10-FIX: la creadora obtiene SU rate vía RPC (nunca el precio del cliente)
 async function showIncoming(row) {
     if (ringing || callState) return;
-    ringing = { callId: row.id, roomId: row.room_id, clientId: row.client_id,
-                clientRate: Number(row.client_rate_per_minute), modelRate: Number(row.model_rate_per_minute) };
-    let name = 'Un cliente';
-    try {
-        const { data } = await window.supabase.rpc('get_display_name', { p_user_id: row.client_id });
-        if (data) name = data;
-    } catch (e) {}
+    let myRate = 0;
+    try { const { data } = await window.supabase.rpc('get_my_rate_for_call', { p_call_id: row.id }); myRate = Number(data || 0); } catch (e) {}
+    ringing = { callId: row.id, roomId: row.room_id, clientId: row.client_id, clientRate: 0, modelRate: myRate };
+    let name = 'Un miembro';
+    try { const { data } = await window.supabase.rpc('get_display_name', { p_user_id: row.client_id }); if (data) name = data; } catch (e) {}
     document.getElementById('incomingTitle').textContent = 'Llamada entrante de ' + name;
-    document.getElementById('incomingInfo').textContent = 'Ganas ' + ringing.modelRate + ' tokens por minuto.';
+    document.getElementById('incomingInfo').textContent = 'Ganas ' + myRate + ' tokens por minuto.';
     document.getElementById('incomingModal').classList.add('active');
 }
 
-function hideIncoming() {
-    ringing = null;
-    document.getElementById('incomingModal').classList.remove('active');
-}
+function hideIncoming() { ringing = null; document.getElementById('incomingModal').classList.remove('active'); }
 
 async function acceptIncoming() {
     if (!ringing) return;
@@ -224,26 +164,22 @@ async function rejectIncoming() {
     try { await window.supabase.rpc('reject_call', { p_call_id: info.callId }); } catch (e) {}
 }
 
+// V10-FIX: el cliente lee solo client_rate (no model_rate)
 async function CND_startCall(modelId) {
     if (callState) { window.showToast('Ya tienes una llamada en curso', 'error'); return; }
     const profile = window.appState.currentUser.profile;
-    if (Number(profile.tokens_balance || 0) <= 0) {
-        window.showToast('No tienes tokens suficientes para llamar', 'error'); return;
-    }
+    if (Number(profile.tokens_balance || 0) <= 0) { window.showToast('No tienes tokens suficientes para llamar', 'error'); return; }
     const roomId = 'room-' + Date.now() + '-' + Math.random().toString(36).slice(2, 8);
     try {
         const { data: callId, error } = await window.supabase.rpc('start_call_with_status', { p_model: modelId, p_room: roomId });
         if (error) throw error;
-        const { data: row } = await window.supabase.from('video_calls').select('*').eq('id', callId).single();
-        await setupCall(callId, roomId, true, modelId, Number(row.client_rate_per_minute), Number(row.model_rate_per_minute));
+        const { data: row } = await window.supabase.from('video_calls').select('id,room_id,status,client_rate_per_minute').eq('id', callId).single();
+        await setupCall(callId, roomId, true, modelId, Number(row.client_rate_per_minute), 0);
         sigSend('ready-request', {});
     } catch (err) { window.showToast(err.message || 'No se pudo iniciar la llamada', 'error'); }
 }
 window.CND_startCall = CND_startCall;
 
-// ============================================================================
-// setupCall
-// ============================================================================
 async function setupCall(callId, roomId, isCaller, peerId, clientRate, modelRate) {
     const stream = await getMediaWithRetry();
     if (!stream) {
@@ -254,8 +190,7 @@ async function setupCall(callId, roomId, isCaller, peerId, clientRate, modelRate
     const pc = new RTCPeerConnection({ iceServers: window.CND_ICE_SERVERS });
     callState = { callId, roomId, pc, isCaller, peerId, clientRate, modelRate,
         localStream: stream, remoteStream: null, facing: 'user', micOn: true,
-        seconds: 0, timers: {}, ending: false, connected: false,
-        iceRestarted: false, channel: null };
+        seconds: 0, timers: {}, ending: false, connected: false, iceRestarted: false, channel: null };
 
     callState.channel = window.supabase.channel('call-' + roomId);
     callState.channel.on('broadcast', { event: 'sig' }, (m) => handleSignal(m.payload));
@@ -279,26 +214,16 @@ async function setupCall(callId, roomId, isCaller, peerId, clientRate, modelRate
     pc.oniceconnectionstatechange = () => {
         const st = pc.iceConnectionState;
         if (st === 'connected' || st === 'completed') {
-            callState.connected = true;
-            hideConnecting(); clearTimer('connectWatch'); clearTimer('connectFail');
+            callState.connected = true; hideConnecting(); clearTimer('connectWatch'); clearTimer('connectFail');
             onCallLive(); startMediaWatch();
             if (isCaller) startBillTimer();
         } else if (st === 'disconnected') {
-            setTimer('disco', 3000, () => {
-                if (callState && callState.pc.iceConnectionState === 'disconnected') {
-                    try { callState.pc.restartIce(); } catch (e) {}
-                }
-            });
+            setTimer('disco', 3000, () => { if (callState && callState.pc.iceConnectionState === 'disconnected') { try { callState.pc.restartIce(); } catch (e) {} } });
         } else if (st === 'failed') { endCall('network'); }
     };
 
     showConnecting();
-    setTimer('connectWatch', 5000, () => {
-        if (callState && !callState.connected && !callState.iceRestarted) {
-            callState.iceRestarted = true;
-            try { callState.pc.restartIce(); } catch (e) {}
-        }
-    });
+    setTimer('connectWatch', 5000, () => { if (callState && !callState.connected && !callState.iceRestarted) { callState.iceRestarted = true; try { callState.pc.restartIce(); } catch (e) {} } });
     setTimer('connectFail', 10000, () => { if (callState && !callState.connected) endCall('network'); });
     applyBitrate(250000);
     setTimer('stats', 5000, monitorQuality, true);
@@ -318,14 +243,10 @@ function appendChatLine(text, own) {
     line.textContent = (own ? 'Tu: ' : '') + text;
     log.appendChild(line);
     log.scrollTop = log.scrollHeight;
-    // Si estaba plegado, mostrar indicador simple
     const panel = document.getElementById('chatPanel');
     if (panel && panel.classList.contains('collapsed')) panel.classList.remove('collapsed');
 }
 
-// ============================================================================
-// Controles
-// ============================================================================
 function toggleMic() {
     if (!callState) return;
     callState.micOn = !callState.micOn;
@@ -348,14 +269,9 @@ async function switchCamera() {
         document.getElementById('localVideo').srcObject = callState.localStream;
         callState.facing = next;
         window.showToast(next === 'environment' ? 'Camara trasera' : 'Camara frontal', 'info');
-    } catch (err) {
-        window.showToast('Este dispositivo no tiene otra camara disponible', 'error');
-    }
+    } catch (err) { window.showToast('Este dispositivo no tiene otra camara disponible', 'error'); }
 }
 
-// ============================================================================
-// Regalos y solicitudes
-// ============================================================================
 async function loadGifts() {
     if (giftsCache) return giftsCache;
     const { data } = await window.supabase.from('gifts').select('*').order('sort_order');
@@ -370,23 +286,17 @@ async function renderGiftsRow() {
     const isClient = callState.isCaller;
     row.innerHTML = gifts.map(g => {
         const price = isClient ? Number(g.client_price) : Number(g.client_price) * window.CND_MODEL_PCT;
-        return `
-            <button class="gift-btn" data-gift="${g.id}" aria-label="${g.name}">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 12 20 22 4 22 4 12"></polyline><rect x="2" y="7" width="20" height="5"></rect><line x1="12" y1="22" x2="12" y2="7"></line><path d="M12 7H7.5a2.5 2.5 0 0 1 0-5C11 2 12 7 12 7z"></path><path d="M12 7h4.5a2.5 2.5 0 0 0 0-5C13 2 12 7 12 7z"></path></svg>
-                ${g.name}<small>${price} tokens</small>
-            </button>`;
+        return `<button class="gift-btn" data-gift="${g.id}" aria-label="${g.name}">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 12 20 22 4 22 4 12"></polyline><rect x="2" y="7" width="20" height="5"></rect><line x1="12" y1="22" x2="12" y2="7"></line><path d="M12 7H7.5a2.5 2.5 0 0 1 0-5C11 2 12 7 12 7z"></path><path d="M12 7h4.5a2.5 2.5 0 0 0 0-5C13 2 12 7 12 7z"></path></svg>
+            ${g.name}<small>${price} tokens</small></button>`;
     }).join('');
     if (!isClient) {
-        row.innerHTML += `
-            <button class="gift-btn" id="tokenReqBtn" aria-label="Solicitar tokens">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="16"></line><line x1="8" y1="12" x2="16" y2="12"></line></svg>
-                Pedir tokens<small>max 500</small>
-            </button>`;
+        row.innerHTML += `<button class="gift-btn" id="tokenReqBtn" aria-label="Solicitar tokens">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="16"></line><line x1="8" y1="12" x2="16" y2="12"></line></svg>
+            Pedir tokens<small>max 500</small></button>`;
         document.getElementById('tokenReqBtn').addEventListener('click', askTokensRequest);
     }
-    row.querySelectorAll('[data-gift]').forEach(b => {
-        b.addEventListener('click', () => onGiftClick(parseInt(b.dataset.gift, 10)));
-    });
+    row.querySelectorAll('[data-gift]').forEach(b => b.addEventListener('click', () => onGiftClick(parseInt(b.dataset.gift, 10))));
 }
 
 async function onGiftClick(giftId) {
@@ -401,9 +311,8 @@ async function sendGiftRpc(giftId, playFx) {
         window.appState.currentUser.profile.tokens_balance = Number(data.balance);
         if (window.updateUserUI) window.updateUserUI();
         const g = (await loadGifts()).find(x => x.id === giftId);
-        window.showToast(callState.isCaller
-            ? 'Regalo enviado: -' + Number(g.client_price) + ' tokens'
-            : 'Regalo recibido: +' + Number(data.earn) + ' tokens', 'success');
+        window.showToast(callState.isCaller ? 'Regalo enviado: -' + Number(g.client_price) + ' tokens'
+                                             : 'Regalo recibido: +' + Number(data.earn) + ' tokens', 'success');
         sigSend('gift', { giftId });
         if (playFx) playGiftFx(g.asset);
     } catch (err) { window.showToast(err.message || 'No se pudo enviar el regalo', 'error'); }
@@ -441,25 +350,19 @@ async function playGiftFx(assetBase) {
     }
     let node = null;
     if (chosen === 'mp4' || chosen === 'webm') {
-        node = document.createElement('video');
-        node.src = base + '.' + chosen; node.className = 'gift-anim';
+        node = document.createElement('video'); node.src = base + '.' + chosen; node.className = 'gift-anim';
         node.autoplay = true; node.muted = true; node.playsInline = true;
     } else if (chosen === 'gif' || chosen === 'webp') {
         node = document.createElement('img'); node.src = base + '.' + chosen; node.className = 'gift-anim'; node.alt = 'Regalo';
     } else if (chosen === 'json') {
-        node = document.createElement('div'); node.className = 'gift-anim';
-        node.style.width = '280px'; node.style.height = '280px';
+        node = document.createElement('div'); node.className = 'gift-anim'; node.style.width = '280px'; node.style.height = '280px';
         fx.appendChild(node);
-        try {
-            const lottie = await import('https://cdn.jsdelivr.net/npm/lottie-web@5/+esm');
-            lottie.default.loadAnimation({ container: node, renderer: 'svg', loop: false, autoplay: true, path: base + '.json' });
-        } catch (e) { node.className = 'gift-fallback'; }
+        try { const lottie = await import('https://cdn.jsdelivr.net/npm/lottie-web@5/+esm');
+              lottie.default.loadAnimation({ container: node, renderer: 'svg', loop: false, autoplay: true, path: base + '.json' }); }
+        catch (e) { node.className = 'gift-fallback'; }
     } else if (chosen === 'glb' || chosen === 'gltf') {
-        node = document.createElement('model-viewer');
-        node.src = base + '.' + chosen;
-        node.setAttribute('auto-rotate', '');
-        node.className = 'gift-anim';
-        node.style.width = '280px'; node.style.height = '280px';
+        node = document.createElement('model-viewer'); node.src = base + '.' + chosen; node.setAttribute('auto-rotate','');
+        node.className = 'gift-anim'; node.style.width = '280px'; node.style.height = '280px';
         fx.appendChild(node);
         try { await import('https://cdn.jsdelivr.net/npm/@google/model-viewer@3/dist/model-viewer.min.js'); } catch (e) { node.className = 'gift-fallback'; }
     }
@@ -468,9 +371,6 @@ async function playGiftFx(assetBase) {
     setTimeout(() => { if (node && node.parentNode) node.parentNode.removeChild(node); }, 6000);
 }
 
-// ============================================================================
-// Señalización
-// ============================================================================
 function sigSend(type, payload) {
     if (!callState || !callState.channel) return;
     callState.channel.send({ type: 'broadcast', event: 'sig', payload: Object.assign({ type }, payload) });
@@ -482,48 +382,37 @@ async function handleSignal(msg) {
     if (msg.type === 'ready' && callState.isCaller) {
         try { const o = await pc.createOffer(); await pc.setLocalDescription(o); sigSend('offer', { sdp: o.sdp }); } catch (e) {}
     } else if (msg.type === 'offer' && !callState.isCaller) {
-        try {
-            await pc.setRemoteDescription({ type: 'offer', sdp: msg.sdp });
-            const a = await pc.createAnswer(); await pc.setLocalDescription(a); sigSend('answer', { sdp: a.sdp });
-        } catch (e) {}
+        try { await pc.setRemoteDescription({ type:'offer', sdp: msg.sdp }); const a = await pc.createAnswer(); await pc.setLocalDescription(a); sigSend('answer', { sdp: a.sdp }); } catch (e) {}
     } else if (msg.type === 'answer' && callState.isCaller) {
-        try { await pc.setRemoteDescription({ type: 'answer', sdp: msg.sdp }); } catch (e) {}
+        try { await pc.setRemoteDescription({ type:'answer', sdp: msg.sdp }); } catch (e) {}
     } else if (msg.type === 'ice') {
         try { await pc.addIceCandidate(msg.candidate); } catch (e) {}
-    } else if (msg.type === 'hangup') {
-        endCall('remote-ended');
-    } else if (msg.type === 'gift-request' && callState.isCaller) {
+    } else if (msg.type === 'hangup') { endCall('remote-ended'); }
+    else if (msg.type === 'gift-request' && callState.isCaller) {
         const g = (await loadGifts()).find(x => x.id === msg.giftId);
         if (!g) return;
-        showRequestModal('Solicitud de regalo',
-            'La modelo solicita "' + g.name + '" por ' + Number(g.client_price) + ' tokens.',
-            () => sendGiftRpc(msg.giftId, true));
+        showRequestModal('Solicitud de regalo', 'La creadora solicita "' + g.name + '" por ' + Number(g.client_price) + ' tokens.', () => sendGiftRpc(msg.giftId, true));
     } else if (msg.type === 'token-request' && callState.isCaller) {
-        showRequestModal('Solicitud de tokens',
-            'La modelo solicita ' + msg.amount + ' tokens. Se descontaran de tu saldo.',
-            async () => {
-                try {
-                    const { data, error } = await window.supabase.rpc('send_token_tip', { p_call_id: callState.callId, p_amount: msg.amount });
-                    if (error) throw error;
-                    window.appState.currentUser.profile.tokens_balance = Number(data.balance);
-                    if (window.updateUserUI) window.updateUserUI();
-                    window.showToast('Solicitud aceptada: -' + msg.amount + ' tokens', 'success');
-                    sigSend('tip', { amount: msg.amount });
-                } catch (err) { window.showToast(err.message || 'No se pudo aceptar', 'error'); }
-            });
+        showRequestModal('Solicitud de tokens', 'La creadora solicita ' + msg.amount + ' tokens. Se descontaran de tu saldo.', async () => {
+            try {
+                const { data, error } = await window.supabase.rpc('send_token_tip', { p_call_id: callState.callId, p_amount: msg.amount });
+                if (error) throw error;
+                window.appState.currentUser.profile.tokens_balance = Number(data.balance);
+                if (window.updateUserUI) window.updateUserUI();
+                window.showToast('Solicitud aceptada: -' + msg.amount + ' tokens', 'success');
+                sigSend('tip', { amount: msg.amount });
+            } catch (err) { window.showToast(err.message || 'No se pudo aceptar', 'error'); }
+        });
     } else if (msg.type === 'gift') {
         const g = (await loadGifts()).find(x => x.id === msg.giftId);
         if (g) playGiftFx(g.asset);
     } else if (msg.type === 'tip') {
-        if (!callState.isCaller)    window.showToast('Solicitud aceptada: +' + (msg.amount * window.CND_MODEL_PCT) + ' tokens', 'success');
+        if (!callState.isCaller) window.showToast('Solicitud aceptada: +' + (msg.amount * window.CND_MODEL_PCT) + ' tokens', 'success');
     } else if (msg.type === 'request-denied') {
         window.showToast('La solicitud fue rechazada', 'info');
     }
 }
 
-// ============================================================================
-// Códecs / bitrate / calidad
-// ============================================================================
 function preferCodecs(pc) {
     try {
         const caps = RTCRtpSender.getCapabilities('video');
@@ -531,9 +420,7 @@ function preferCodecs(pc) {
         const ordered = caps.codecs.filter(c => c.mimeType.toLowerCase() === 'video/h264')
             .concat(caps.codecs.filter(c => c.mimeType.toLowerCase() === 'video/vp8'))
             .concat(caps.codecs.filter(c => c.mimeType.toLowerCase() === 'video/rtx'));
-        pc.getTransceivers().forEach(tr => {
-            if (tr.receiver.track.kind === 'video' && ordered.length && tr.setCodecPreferences) tr.setCodecPreferences(ordered);
-        });
+        pc.getTransceivers().forEach(tr => { if (tr.receiver.track.kind === 'video' && ordered.length && tr.setCodecPreferences) tr.setCodecPreferences(ordered); });
     } catch (e) {}
 }
 
@@ -571,9 +458,6 @@ async function getMediaWithRetry() {
     return null;
 }
 
-// ============================================================================
-// Cobro en vivo
-// ============================================================================
 function startBillTimer() { setTimer('ui', 1000, tickUi, true); setTimer('bill', 10000, tickBill, true); }
 function startEarnTimer() { setTimer('ui', 1000, tickUi, true); }
 
@@ -608,27 +492,15 @@ async function tickBill() {
     } catch (err) { console.error('tick_call fallo:', err); }
 }
 
-function showConnecting() {
-    document.getElementById('callOverlay').classList.add('active');
-    document.getElementById('callConnecting').style.display = 'flex';
-}
-function hideConnecting() {
-    const c = document.getElementById('callConnecting');
-    if (c) c.style.display = 'none';
-}
+function showConnecting() { document.getElementById('callOverlay').classList.add('active'); document.getElementById('callConnecting').style.display = 'flex'; }
+function hideConnecting() { const c = document.getElementById('callConnecting'); if (c) c.style.display = 'none'; }
 function startMediaWatch() {
-    setTimer('mediaWatch', 15000, () => {
-        if (callState && (!callState.remoteStream || callState.remoteStream.getTracks().length === 0)) endCall('sin-medios');
-    });
+    setTimer('mediaWatch', 15000, () => { if (callState && (!callState.remoteStream || callState.remoteStream.getTracks().length === 0)) endCall('sin-medios'); });
 }
 
-// ============================================================================
-// endCall(): quien cuelga LIQUIDA la llamada con settle_call
-// ============================================================================
 async function endCall(reason) {
     if (!callState || callState.ending) return;
     callState.ending = true;
-
     sigSend('hangup', {});
     window.CND_chat.detach();
     Object.keys(callState.timers).forEach(k => clearTimer(k));
@@ -637,7 +509,6 @@ async function endCall(reason) {
     try { callState.pc.close(); } catch (e) {}
     try { if (callState.channel) window.supabase.removeChannel(callState.channel); } catch (e) {}
 
-    // Liquidación: solo quien cuelga y solo si estuvo conectada
     const wasConnected = callState.connected;
     const myRole = callState.isCaller ? 'client' : 'model';
     const callId = callState.callId;
@@ -647,37 +518,25 @@ async function endCall(reason) {
         } else if (!wasConnected) {
             await window.supabase.rpc('end_call', { p_call_id: callId });
         }
-        // reason remote-ended: la otra parte ya liquidó
-    } catch (e) { console.error('Error al liquidar llamada:', e); }
+    } catch (e) { console.error('Error al liquidar:', e); }
 
     const overlay = document.getElementById('callOverlay');
     if (overlay) { overlay.classList.remove('active'); overlay.classList.remove('live'); }
     document.getElementById('remoteVideo').srcObject = null;
     document.getElementById('localVideo').srcObject = null;
-    const rm = document.getElementById('callRequestModal');
-    if (rm) rm.classList.remove('active');
-    const mb = document.getElementById('micBtn');
-    if (mb) mb.classList.remove('off');
-
+    const rm = document.getElementById('callRequestModal'); if (rm) rm.classList.remove('active');
+    const mb = document.getElementById('micBtn'); if (mb) mb.classList.remove('off');
     callState = null;
 
-    if (reason === 'rejected') window.showToast('La modelo rechazo la llamada. No se te cobro nada.', 'info');
+    if (reason === 'rejected') window.showToast('La creadora rechazo la llamada. No se te cobro nada.', 'info');
     else if (reason === 'network') window.showToast('Tu red parece estar detras de una NAT restrictiva. Recomendamos: usar WiFi, desactivar VPN o intentar mas tarde.', 'error');
     else if (reason === 'sin-medios') window.showToast('No se recibio video ni audio de la otra parte.', 'error');
     else if (reason === 'remote-ended') window.showToast('La otra parte finalizo la llamada. Liquidacion aplicada.', 'info');
     else window.showToast('Llamada finalizada y liquidada', 'info');
 }
 
-function setTimer(name, ms, fn, repeat) {
-    if (!callState) return;
-    clearTimer(name);
-    callState.timers[name] = repeat ? setInterval(fn, ms) : setTimeout(fn, ms);
-}
-function clearTimer(name) {
-    if (!callState) return;
-    const t = callState.timers[name];
-    if (t) { clearInterval(t); clearTimeout(t); delete callState.timers[name]; }
-}
+function setTimer(name, ms, fn, repeat) { if (!callState) return; clearTimer(name); callState.timers[name] = repeat ? setInterval(fn, ms) : setTimeout(fn, ms); }
+function clearTimer(name) { if (!callState) return; const t = callState.timers[name]; if (t) { clearInterval(t); clearTimeout(t); delete callState.timers[name]; } }
 
 document.addEventListener('DOMContentLoaded', () => {
     const a = document.getElementById('acceptCallBtn');
