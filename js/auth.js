@@ -1,6 +1,7 @@
 // ============================================================================
-// CONDONIS - AUTH: registro por género (Hombre->cliente, Mujer->modelo)
-// y validación de edad. Branding desde CND_APP_NAME.
+// CONDONIS/LinguaMeet - AUTH: registro por género (Hombre->cliente,
+// Mujer->creadora) con verificación de edad SILENCIOSA por fecha de
+// nacimiento (obligatoria por ley y por las tiendas, pero sin carteles).
 // ============================================================================
 
 function initAuth() {
@@ -9,7 +10,6 @@ function initAuth() {
     setupResendConfirmation(); setupModals(); checkExistingSession();
 }
 
-// Aplica el nombre público de la app al título y al logo
 function applyBrand() {
     const name = window.CND_APP_NAME || 'LinguaMeet';
     document.title = name + ' - Inicio';
@@ -61,6 +61,7 @@ function setupResendConfirmation() {
     });
 }
 
+// Validación de mayoría de edad (silenciosa en el formulario, estricta aquí)
 function isAdult(b) {
     if (!b) return false;
     const d = new Date(b); if (isNaN(d)) return false;
@@ -75,7 +76,6 @@ function setupRegisterForm() {
     const gender = document.getElementById('registerGender');
     const ageCheck = document.getElementById('ageCheck');
 
-    // El checkbox KYC/+18 reforzado solo aplica a mujeres (creadoras)
     gender.addEventListener('change', () => {
         const fem = gender.value === 'female';
         ageCheck.style.display = fem ? 'flex' : 'none';
@@ -84,7 +84,7 @@ function setupRegisterForm() {
 
     f.addEventListener('submit', async (e) => {
         e.preventDefault();
-        const name = document.getElementById('registerName').value.trim();
+        const name = window.CND_clean ? window.CND_clean(document.getElementById('registerName').value, 60) : document.getElementById('registerName').value.trim();
         const email = document.getElementById('registerEmail').value.trim();
         const pass = document.getElementById('registerPassword').value;
         const birth = document.getElementById('registerBirth').value;
@@ -93,12 +93,11 @@ function setupRegisterForm() {
         const adult = document.getElementById('isAdult').checked;
         const b = document.getElementById('registerBtn');
 
-        // Mapeo de género a rol interno (sin cambiar la base de datos)
         const role = (gen === 'female') ? 'model' : 'client';
 
         if (!terms) { showAlert('Debes aceptar los Términos.', 'error'); return; }
-        if (!isAdult(birth)) { showAlert('Debes ser mayor de 18 años.', 'error'); return; }
-        if (role === 'model' && !adult) { showAlert('Confirma que eres +18 y aceptas la verificación de creadora.', 'error'); return; }
+        if (!isAdult(birth)) { showAlert('Debes cumplir la mayoría de edad para registrarte.', 'error'); return; }
+        if (role === 'model' && !adult) { showAlert('Debes aceptar la verificación de identidad para continuar.', 'error'); return; }
 
         b.disabled = true; b.innerHTML = '<span class="spinner"></span>';
         try {
@@ -126,10 +125,8 @@ function setupRegisterForm() {
 }
 
 function setupModals() {
-    const t = document.getElementById('showTerms');
-    if (t) t.addEventListener('click', (e) => { e.preventDefault(); document.getElementById('termsModal').classList.add('active'); });
-    const p = document.getElementById('showPrivacy');
-    if (p) p.addEventListener('click', (e) => { e.preventDefault(); document.getElementById('privacyModal').classList.add('active'); });
+    document.querySelectorAll('[data-close]').forEach(btn =>
+        btn.addEventListener('click', () => closeModal(btn.dataset.close)));
 }
 function closeModal(id) { const m = document.getElementById(id); if (m) m.classList.remove('active'); }
 function showAlert(m, t) { const a = document.getElementById('authAlert'); if (!a) return; a.textContent = m; a.className = 'alert ' + t; a.style.display = 'block'; }
