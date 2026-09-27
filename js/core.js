@@ -1,8 +1,7 @@
 // ============================================================================
 // CONDONIS - CORE: sesión, navegación, Realtime, perfil, avatar, eliminación
-// V8.1: el header muestra para la MODELO sus ganancias acumuladas
-// (tokens_retained) con el mismo formato que los clientes; para clientes su
-// tokens_balance y para admin "ilimitados".
+// V9-SEC-fix: el botón Cerrar Sesión se ata aquí (por id o por texto) y
+// logout() SIEMPRE redirige a index.html aunque signOut() falle.
 // ============================================================================
 
 window.appState = {
@@ -57,14 +56,9 @@ async function loadUserProfile() {
     }
 }
 
-// ----------------------------------------------------------------------------
-// updateUserUI: header. Modelo -> ganancias acumuladas; cliente -> saldo;
-// admin -> ilimitados. Mismo formato visual para todos ("X tokens").
-// ----------------------------------------------------------------------------
 function updateUserUI() {
     const profile = window.appState.currentUser && window.appState.currentUser.profile;
     if (!profile) return;
-
     const avatar = document.getElementById('userAvatar');
     if (avatar) {
         if (profile.avatar_url) {
@@ -77,19 +71,11 @@ function updateUserUI() {
             avatar.textContent = (profile.full_name || 'U').charAt(0).toUpperCase();
         }
     }
-
     const balance = document.getElementById('userBalance');
     if (balance) {
-        if (profile.role === 'admin') {
-            balance.textContent = 'tokens: ilimitados';
-        } else if (profile.role === 'model') {
-            // La modelo ve arriba sus ganancias acumuladas (como el cliente ve su saldo)
-            balance.textContent = Number(profile.tokens_retained || 0) + ' tokens';
-            balance.title = 'Ganancias acumuladas';
-        } else {
-            balance.textContent = Number(profile.tokens_balance || 0) + ' tokens';
-            balance.title = 'Saldo disponible';
-        }
+        if (profile.role === 'admin') balance.textContent = 'tokens: ilimitados';
+        else if (profile.role === 'model') balance.textContent = Number(profile.tokens_retained || 0) + ' tokens';
+        else balance.textContent = Number(profile.tokens_balance || 0) + ' tokens';
     }
 }
 
@@ -99,28 +85,20 @@ function setupUIForRole() {
     const nav = document.querySelector('.bottom-nav');
     if (!nav) return;
     if (document.querySelector('[data-section="sectionAdmin"]')) return;
-
     if (profile.role === 'admin') {
-        const adminBtn = document.createElement('button');
-        adminBtn.className = 'nav-item';
-        adminBtn.dataset.section = 'sectionAdmin';
-        adminBtn.setAttribute('aria-label', 'Panel de administración');
-        adminBtn.innerHTML = `
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <circle cx="12" cy="12" r="3"></circle>
-                <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33h.01a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51h.01a1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82v.01a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
-            </svg>
-            <span class="nav-label">Admin</span>`;
-        adminBtn.addEventListener('click', () => showSection('sectionAdmin'));
-        nav.appendChild(adminBtn);
+        const b = document.createElement('button');
+        b.className = 'nav-item'; b.dataset.section = 'sectionAdmin';
+        b.setAttribute('aria-label', 'Panel de administración');
+        b.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33h.01a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51h.01a1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82v.01a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg><span class="nav-label">Admin</span>`;
+        b.addEventListener('click', () => showSection('sectionAdmin'));
+        nav.appendChild(b);
     }
 }
 
 function setupRealtimeSubscriptions() {
     window.appState.realtimeSubscription = window.supabase
         .channel('profiles-changes')
-        .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'profiles' },
-            (p) => handleProfileUpdate(p))
+        .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'profiles' }, (p) => handleProfileUpdate(p))
         .subscribe();
 }
 
@@ -186,11 +164,7 @@ function renderProfileSection() {
         <p class="hint">Al eliminar tu cuenta se borran para siempre tu perfil, datos, documentos y historial.</p>`;
 
     const big = document.getElementById('profileAvatarBig');
-    if (p.avatar_url && big) {
-        big.textContent = '';
-        big.style.backgroundImage = `url('${p.avatar_url}')`;
-        big.style.backgroundSize = 'cover'; big.style.backgroundPosition = 'center';
-    }
+    if (p.avatar_url && big) { big.textContent = ''; big.style.backgroundImage = `url('${p.avatar_url}')`; big.style.backgroundSize = 'cover'; big.style.backgroundPosition = 'center'; }
     document.getElementById('avatarPick').addEventListener('click', () => document.getElementById('avatarFile').click());
     document.getElementById('avatarFile').addEventListener('change', (e) => uploadAvatar(e.target));
     document.getElementById('deleteAccountBtn').addEventListener('click', deleteOwnAccount);
@@ -226,14 +200,18 @@ async function deleteOwnAccount() {
     } catch (e) { showToast('No se pudo eliminar la cuenta', 'error'); }
 }
 
-function renderHistoryPlaceholder() {
-    const c = document.getElementById('historyContent');
-    if (c) c.innerHTML = '<p style="color:#94A3B8;">El historial estará disponible próximamente.</p>';
+// ----------------------------------------------------------------------------
+// logout(): CIERRA y SIEMPRE redirige, aunque signOut o el canal fallen.
+// ----------------------------------------------------------------------------
+async function logout() {
+    try { if (window.appState.realtimeSubscription) window.supabase.removeChannel(window.appState.realtimeSubscription); } catch (e) {}
+    try { await window.supabase.auth.signOut(); } catch (e) { /* sesión ya inválida: igual salimos */ }
+    window.appState.currentUser = null;
+    window.location.href = 'index.html';
 }
-function renderAdminPlaceholder() {
-    const c = document.getElementById('adminContent');
-    if (c) c.innerHTML = '<p style="color:#94A3B8;">Panel de administración en carga...</p>';
-}
+
+function renderHistoryPlaceholder() { const c = document.getElementById('historyContent'); if (c) c.innerHTML = '<p style="color:#94A3B8;">El historial estará disponible próximamente.</p>'; }
+function renderAdminPlaceholder() { const c = document.getElementById('adminContent'); if (c) c.innerHTML = '<p style="color:#94A3B8;">Panel de administración en carga...</p>'; }
 
 function showToast(message, type = 'info') {
     const c = document.getElementById('toastContainer');
@@ -244,16 +222,19 @@ function showToast(message, type = 'info') {
     setTimeout(() => { t.style.opacity = '0'; setTimeout(() => t.remove(), 300); }, 4000);
 }
 
-async function logout() {
-    try {
-        if (window.appState.realtimeSubscription) window.supabase.removeChannel(window.appState.realtimeSubscription);
-        await window.supabase.auth.signOut();
-        window.location.href = 'index.html';
-    } catch (e) { showToast('Error al cerrar sesión', 'error'); }
-}
-
 document.addEventListener('DOMContentLoaded', () => {
+    // Navegación inferior
     document.querySelectorAll('.nav-item').forEach(i => i.addEventListener('click', () => { const s = i.dataset.section; if (s) showSection(s); }));
+
+    // Botón Cerrar Sesión: lo atamos AQUÍ (por id O por texto) para que
+    // funcione con cualquier versión de app.html. Un solo listener.
+    const lb = document.getElementById('logoutBtn')
+        || Array.from(document.querySelectorAll('button')).find(b => /cerrar sesi/i.test(b.textContent || ''));
+    if (lb && !lb.dataset.logoutBound) {
+        lb.dataset.logoutBound = '1';
+        lb.addEventListener('click', logout);
+    }
+
     initApp();
 });
 
