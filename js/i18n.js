@@ -1,8 +1,6 @@
 // ============================================================================
-// CONDONIS - I18N: multi-idioma + traducción de chat + BRANDING y REBRAND
-// V8.2: aplica CND_APP_NAME al título/header; rebrand femenino
-// (modelo->creadora) y cliente->miembro, con MutationObserver para cubrir
-// renders dinámicos.
+// CONDONIS/LinguaMeet - I18N: multi-idioma + traducción de chat + branding.
+// V10-FIX: applyBrand también reescribe los mailto: al correo de soporte.
 // ============================================================================
 
 const I18N_DICT = {
@@ -46,12 +44,14 @@ function detectLocale() {
 function t(k){ return (I18N_DICT[locale]&&I18N_DICT[locale][k]) || I18N_DICT.es[k] || k; }
 function setLocale(l){ if(!I18N_DICT[l])return; locale=l; localStorage.setItem('cnd_locale',l); applyUI(); if(window.CND_REBRAND) applyRebrand(); }
 
-// Branding: nombre público de la app en title y headers
+// Branding: nombre público + correo de soporte en todos los mailto:
 function applyBrand() {
     const name = window.CND_APP_NAME || 'LinguaMeet';
+    const support = window.CND_SUPPORT_EMAIL || 'soporte@linguameet.com';
     document.title = name;
     const appH = document.querySelector('.app-header h1'); if (appH) appH.textContent = name;
     const logoH = document.getElementById('brandTitle'); if (logoH) logoH.textContent = name;
+    document.querySelectorAll('a[href^="mailto:"]').forEach(a => { a.href = 'mailto:' + support; });
 }
 
 function applyUI() {
@@ -73,7 +73,6 @@ function applyRebrand() {
     });
 }
 
-// Re-aplica rebrand a contenido renderizado dinámicamente (debounce)
 function startRebrandObserver() {
     let timer=null;
     rebrandObserver = new MutationObserver(() => {
